@@ -9,26 +9,26 @@ import (
 )
 
 type treeValidationTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	Tree    testBytes `json:"tree"`
 	GroupID testBytes `json:"group_id"`
 
-	Resolutions [][]nodeIndex `json:"resolutions"`
+	Resolutions [][]NodeIndex `json:"resolutions"`
 	TreeHashes  []testBytes   `json:"tree_hashes"`
 }
 
 func testTreeValidation(t *testing.T, tc *treeValidationTest) {
-	var tree ratchetTree
-	if err := unmarshal([]byte(tc.Tree), &tree); err != nil {
+	var tree RatchetTree
+	if err := Unmarshal([]byte(tc.Tree), &tree); err != nil {
 		t.Fatalf("unmarshal(tree) = %v", err)
 	}
 
 	for i, want := range tc.Resolutions {
-		x := nodeIndex(i)
-		res := tree.resolve(x)
+		x := NodeIndex(i)
+		res := tree.Resolve(x)
 		if len(res) == 0 {
-			res = make([]nodeIndex, 0)
+			res = make([]NodeIndex, 0)
 		}
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("resolve(%v) = %v, want %v", x, res, want)
@@ -36,8 +36,8 @@ func testTreeValidation(t *testing.T, tc *treeValidationTest) {
 	}
 
 	for i, want := range tc.TreeHashes {
-		x := nodeIndex(i)
-		if h, err := tree.computeTreeHash(tc.CipherSuite, x, nil); err != nil {
+		x := NodeIndex(i)
+		if h, err := tree.ComputeTreeHash(tc.CipherSuite, x, nil); err != nil {
 			t.Errorf("computeTreeHash(%v) = %v", x, err)
 		} else if !bytes.Equal(h, []byte(want)) {
 			t.Errorf("computeTreeHash(%v) = %v, want %v", x, h, want)
@@ -50,10 +50,10 @@ func testTreeValidation(t *testing.T, tc *treeValidationTest) {
 
 	groupID := GroupID(tc.GroupID)
 	for i, node := range tree {
-		if node == nil || node.nodeType != nodeTypeLeaf {
+		if node == nil || node.nodeType != NodeTypeLeaf {
 			continue
 		}
-		li, ok := nodeIndex(i).leafIndex()
+		li, ok := NodeIndex(i).LeafIndex()
 		if !ok {
 			t.Errorf("leafIndex(%v) = false", i)
 			continue
@@ -76,7 +76,7 @@ func TestTreeValidation(t *testing.T) {
 }
 
 type treeKEMTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	GroupID                 testBytes `json:"group_id"`
 	Epoch                   uint64    `json:"epoch"`
@@ -89,7 +89,7 @@ type treeKEMTest struct {
 		EncryptionPriv testBytes `json:"encryption_priv"`
 		SignaturePriv  testBytes `json:"signature_priv"`
 		PathSecrets    []struct {
-			Node       nodeIndex `json:"node"`
+			Node       NodeIndex `json:"node"`
 			PathSecret testBytes `json:"path_secret"`
 		} `json:"path_secrets"`
 	} `json:"leaves_private"`
@@ -110,13 +110,13 @@ func testTreeKEM(t *testing.T, tc *treeKEMTest) {
 	}
 
 	for _, leafPrivate := range tc.LeavesPrivate {
-		var tree ratchetTree
-		if err := unmarshal([]byte(tc.RatchetTree), &tree); err != nil {
+		var tree RatchetTree
+		if err := Unmarshal([]byte(tc.RatchetTree), &tree); err != nil {
 			t.Fatalf("unmarshal(ratchetTree) = %v", err)
 		}
 
 		privTree := make([]privNode, len(tree))
-		privTree[int(leafPrivate.Index.nodeIndex())] = privNode{
+		privTree[int(leafPrivate.Index.NodeIndex())] = privNode{
 			encryptionPriv: leafPrivate.EncryptionPriv,
 			signaturePriv:  leafPrivate.SignaturePriv,
 		}
@@ -129,7 +129,7 @@ func testTreeKEM(t *testing.T, tc *treeKEMTest) {
 		}
 
 		for _, ps := range leafPrivate.PathSecrets {
-			priv, err := nodePrivFromPathSecret(tc.CipherSuite, ps.PathSecret, tree.get(ps.Node).encryptionKey())
+			priv, err := NodePrivFromPathSecret(tc.CipherSuite, ps.PathSecret, tree.Get(ps.Node).EncryptionKey())
 			if err != nil {
 				t.Fatalf("failed to derive node %v private key from path secret: %v", ps.Node, err)
 			}
@@ -149,7 +149,7 @@ func testTreeKEM(t *testing.T, tc *treeKEMTest) {
 				t.Fatalf("UnmarshalBinaryPrivateKey() = %v", err)
 			}
 
-			pub, err := kem.Scheme().UnmarshalBinaryPublicKey(tree[i].encryptionKey())
+			pub, err := kem.Scheme().UnmarshalBinaryPublicKey(tree[i].EncryptionKey())
 			if err != nil {
 				t.Fatalf("UnmarshalBinaryPublicKey() = %v", err)
 			}
@@ -163,24 +163,24 @@ func testTreeKEM(t *testing.T, tc *treeKEMTest) {
 	}
 
 	for _, updatePathTest := range tc.UpdatePaths {
-		var tree ratchetTree
-		if err := unmarshal([]byte(tc.RatchetTree), &tree); err != nil {
+		var tree RatchetTree
+		if err := Unmarshal([]byte(tc.RatchetTree), &tree); err != nil {
 			t.Fatalf("unmarshal(ratchetTree) = %v", err)
 		}
 
-		var up updatePath
-		if err := unmarshal([]byte(updatePathTest.UpdatePath), &up); err != nil {
+		var up UpdatePath
+		if err := Unmarshal([]byte(updatePathTest.UpdatePath), &up); err != nil {
 			t.Fatalf("unmarshal(updatePath) = %v", err)
 		}
 
 		// TODO: verify that UpdatePath is parent-hash valid relative to ratchet tree
 		// TODO: process UpdatePath using private leaves
 
-		if err := tree.mergeUpdatePath(tc.CipherSuite, updatePathTest.Sender, &up); err != nil {
+		if err := tree.MergeUpdatePath(tc.CipherSuite, updatePathTest.Sender, &up); err != nil {
 			t.Fatalf("ratchetTree.mergeUpdatePath() = %v", err)
 		}
 
-		treeHash, err := tree.computeRootTreeHash(tc.CipherSuite)
+		treeHash, err := tree.ComputeRootTreeHash(tc.CipherSuite)
 		if err != nil {
 			t.Errorf("ratchetTree.computeRootTreeHash() = %v", err)
 		} else if !bytes.Equal(treeHash, []byte(updatePathTest.TreeHashAfter)) {
@@ -203,7 +203,7 @@ func TestTreeKEM(t *testing.T) {
 }
 
 type treeOperationsTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	TreeBefore     testBytes `json:"tree_before"`
 	Proposal       testBytes `json:"proposal"`
@@ -215,40 +215,40 @@ type treeOperationsTest struct {
 }
 
 func testTreeOperations(t *testing.T, tc *treeOperationsTest) {
-	var tree ratchetTree
-	if err := unmarshal([]byte(tc.TreeBefore), &tree); err != nil {
+	var tree RatchetTree
+	if err := Unmarshal([]byte(tc.TreeBefore), &tree); err != nil {
 		t.Fatalf("unmarshal(tree) = %v", err)
 	}
 
-	treeHash, err := tree.computeRootTreeHash(tc.CipherSuite)
+	treeHash, err := tree.ComputeRootTreeHash(tc.CipherSuite)
 	if err != nil {
 		t.Errorf("ratchetTree.computeRootTreeHash() = %v", err)
 	} else if !bytes.Equal(treeHash, []byte(tc.TreeHashBefore)) {
 		t.Errorf("ratchetTree.computeRootTreeHash() = %v, want %v", treeHash, tc.TreeHashBefore)
 	}
 
-	var prop proposal
-	if err := unmarshal([]byte(tc.Proposal), &prop); err != nil {
+	var prop Proposal
+	if err := Unmarshal([]byte(tc.Proposal), &prop); err != nil {
 		t.Fatalf("unmarshal(proposal) = %v", err)
 	}
 
 	switch prop.proposalType {
-	case proposalTypeAdd:
-		ctx := groupContext{
-			version:     prop.add.keyPackage.version,
-			cipherSuite: prop.add.keyPackage.cipherSuite,
+	case ProposalTypeAdd:
+		ctx := GroupContext{
+			Version:     prop.add.keyPackage.Version,
+			CipherSuite: prop.add.keyPackage.CipherSuite,
 		}
-		if err := prop.add.keyPackage.verify(&ctx); err != nil {
+		if err := prop.add.keyPackage.Verify(&ctx); err != nil {
 			t.Errorf("keyPackage.verify() = %v", err)
 		}
-		tree.add(&prop.add.keyPackage.leafNode)
-	case proposalTypeUpdate:
-		signatureKeys, encryptionKeys := tree.keys()
-		err := prop.update.leafNode.verify(&leafNodeVerifyOptions{
+		tree.Add(&prop.add.keyPackage.LeafNode)
+	case ProposalTypeUpdate:
+		signatureKeys, encryptionKeys := tree.Keys()
+		err := prop.update.leafNode.Verify(&LeafNodeVerifyOptions{
 			cipherSuite:    tc.CipherSuite,
 			groupID:        nil,
 			leafIndex:      tc.ProposalSender,
-			supportedCreds: tree.supportedCreds(),
+			supportedCreds: tree.SupportedCreds(),
 			signatureKeys:  signatureKeys,
 			encryptionKeys: encryptionKeys,
 			now:            func() time.Time { return time.Time{} },
@@ -256,24 +256,24 @@ func testTreeOperations(t *testing.T, tc *treeOperationsTest) {
 		if err != nil {
 			t.Errorf("leafNode.verify() = %v", err)
 		}
-		tree.update(tc.ProposalSender, &prop.update.leafNode)
-	case proposalTypeRemove:
-		if tree.getLeaf(prop.remove.removed) == nil {
+		tree.Update(tc.ProposalSender, &prop.update.leafNode)
+	case ProposalTypeRemove:
+		if tree.GetLeaf(prop.remove.removed) == nil {
 			t.Errorf("leaf node %v is blank", prop.remove.removed)
 		}
-		tree.remove(prop.remove.removed)
+		tree.Remove(prop.remove.removed)
 	default:
 		panic("unreachable")
 	}
 
-	rawTree, err := marshal(&tree)
+	rawTree, err := Marshal(&tree)
 	if err != nil {
 		t.Fatalf("marshal(tree) = %v", err)
 	} else if !bytes.Equal(rawTree, []byte(tc.TreeAfter)) {
 		t.Errorf("marshal(tree) = %v, want %v", rawTree, tc.TreeAfter)
 	}
 
-	treeHash, err = tree.computeRootTreeHash(tc.CipherSuite)
+	treeHash, err = tree.ComputeRootTreeHash(tc.CipherSuite)
 	if err != nil {
 		t.Errorf("ratchetTree.computeRootTreeHash() = %v", err)
 	} else if !bytes.Equal(treeHash, []byte(tc.TreeHashAfter)) {

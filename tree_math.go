@@ -20,58 +20,58 @@ package mls
 //
 //    Leaf: 0     1     2     3     4     5     6     7
 
-// numLeaves exposes operations on a tree with a given number of leaves.
-type numLeaves uint32
+// NumLeaves exposes operations on a tree with a given number of leaves.
+type NumLeaves uint32
 
-func numLeavesFromWidth(w uint32) numLeaves {
+func NumLeavesFromWidth(w uint32) NumLeaves {
 	if w == 0 {
 		return 0
 	}
-	return numLeaves((w-1)/2 + 1)
+	return NumLeaves((w-1)/2 + 1)
 }
 
-// width computes the minimum length of the array, ie. the number of nodes.
-func (n numLeaves) width() uint32 {
+// Width computes the minimum length of the array, ie. the number of nodes.
+func (n NumLeaves) Width() uint32 {
 	if n == 0 {
 		return 0
 	}
 	return 2*(uint32(n)-1) + 1
 }
 
-// root returns the index of the root node.
-func (n numLeaves) root() nodeIndex {
-	return nodeIndex((1 << log2(n.width())) - 1)
+// Root returns the index of the Root node.
+func (n NumLeaves) Root() NodeIndex {
+	return NodeIndex((1 << Log2(n.Width())) - 1)
 }
 
-// parent returns the index of the parent node for a non-root node index.
-func (n numLeaves) parent(x nodeIndex) (nodeIndex, bool) {
-	if x == n.root() {
+// Parent returns the index of the Parent node for a non-root node index.
+func (n NumLeaves) Parent(x NodeIndex) (NodeIndex, bool) {
+	if x == n.Root() {
 		return 0, false
 	}
-	lvl := nodeIndex(x.level())
+	lvl := NodeIndex(x.Level())
 	b := (x >> (lvl + 1)) & 1
 	p := (x | (1 << lvl)) ^ (b << (lvl + 1))
 	return p, true
 }
 
-// sibling returns the index of the other child of the node's parent.
-func (n numLeaves) sibling(x nodeIndex) (nodeIndex, bool) {
-	p, ok := n.parent(x)
+// Sibling returns the index of the other child of the node's parent.
+func (n NumLeaves) Sibling(x NodeIndex) (NodeIndex, bool) {
+	p, ok := n.Parent(x)
 	if !ok {
 		return 0, false
 	}
 	if x < p {
-		return p.right()
+		return p.Right()
 	} else {
-		return p.left()
+		return p.Left()
 	}
 }
 
-// directPath computes the direct path of a node, ordered from leaf to root.
-func (n numLeaves) directPath(x nodeIndex) []nodeIndex {
-	var path []nodeIndex
+// DirectPath computes the direct path of a node, ordered from leaf to root.
+func (n NumLeaves) DirectPath(x NodeIndex) []NodeIndex {
+	var path []NodeIndex
 	for {
-		p, ok := n.parent(x)
+		p, ok := n.Parent(x)
 		if !ok {
 			break
 		}
@@ -81,18 +81,18 @@ func (n numLeaves) directPath(x nodeIndex) []nodeIndex {
 	return path
 }
 
-// copath computes the copath of a node, ordered from leaf to root.
-func (n numLeaves) copath(x nodeIndex) []nodeIndex {
-	path := n.directPath(x)
+// Copath computes the Copath of a node, ordered from leaf to root.
+func (n NumLeaves) Copath(x NodeIndex) []NodeIndex {
+	path := n.DirectPath(x)
 	if len(path) == 0 {
 		return nil
 	}
-	path = append([]nodeIndex{x}, path...)
+	path = append([]NodeIndex{x}, path...)
 	path = path[:len(path)-1]
 
-	var copath []nodeIndex
+	var copath []NodeIndex
 	for _, y := range path {
-		s, ok := n.sibling(y)
+		s, ok := n.Sibling(y)
 		if !ok {
 			panic("unreachable")
 		}
@@ -102,57 +102,57 @@ func (n numLeaves) copath(x nodeIndex) []nodeIndex {
 	return copath
 }
 
-// nodeIndex is the index of a node in a tree.
-type nodeIndex uint32
+// NodeIndex is the index of a node in a tree.
+type NodeIndex uint32
 
-// isLeaf returns true if this is a leaf node, false if this is an intermediate
+// IsLeaf returns true if this is a leaf node, false if this is an intermediate
 // node.
-func (x nodeIndex) isLeaf() bool {
+func (x NodeIndex) IsLeaf() bool {
 	return x%2 == 0
 }
 
-// leafIndex returns the index of the leaf from a node index.
-func (x nodeIndex) leafIndex() (leafIndex, bool) {
-	if !x.isLeaf() {
+// LeafIndex returns the index of the leaf from a node index.
+func (x NodeIndex) LeafIndex() (leafIndex, bool) {
+	if !x.IsLeaf() {
 		return 0, false
 	}
 	return leafIndex(x) >> 1, true
 }
 
-// left returns the index of the left child for an intermediate node index.
-func (x nodeIndex) left() (nodeIndex, bool) {
-	lvl := x.level()
+// Left returns the index of the Left child for an intermediate node index.
+func (x NodeIndex) Left() (NodeIndex, bool) {
+	lvl := x.Level()
 	if lvl == 0 {
 		return 0, false
 	}
-	l := x ^ (1 << (nodeIndex(lvl) - 1))
+	l := x ^ (1 << (NodeIndex(lvl) - 1))
 	return l, true
 }
 
-// right returns the index of the right child for an intermediate node index.
-func (x nodeIndex) right() (nodeIndex, bool) {
-	lvl := x.level()
+// Right returns the index of the Right child for an intermediate node index.
+func (x NodeIndex) Right() (NodeIndex, bool) {
+	lvl := x.Level()
 	if lvl == 0 {
 		return 0, false
 	}
-	r := x ^ (3 << (nodeIndex(lvl) - 1))
+	r := x ^ (3 << (NodeIndex(lvl) - 1))
 	return r, true
 }
 
-// children returns the indices of the left and right children for an
+// Children returns the indices of the left and right Children for an
 // intermediate node index.
-func (x nodeIndex) children() (left, right nodeIndex, ok bool) {
-	l, ok := x.left()
+func (x NodeIndex) Children() (left, right NodeIndex, ok bool) {
+	l, ok := x.Left()
 	if !ok {
 		return 0, 0, false
 	}
-	r, _ := x.right()
+	r, _ := x.Right()
 	return l, r, true
 }
 
-// level returns the level of a node in the tree. Leaves are at level 0, their
-// parents are at level 1, etc.
-func (x nodeIndex) level() uint32 {
+// Level returns the Level of a node in the tree. Leaves are at Level 0, their
+// parents are at Level 1, etc.
+func (x NodeIndex) Level() uint32 {
 	if x&1 == 0 {
 		return 0
 	}
@@ -163,11 +163,11 @@ func (x nodeIndex) level() uint32 {
 	return lvl
 }
 
-// commonAncestor returns the the lowest node that is in the direct paths of
+// CommonAncestor returns the the lowest node that is in the direct paths of
 // both leaves.
-func commonAncestor(x, y nodeIndex) nodeIndex {
+func CommonAncestor(x, y NodeIndex) NodeIndex {
 	// Handle cases where one is an ancestor of the other
-	lx, ly := x.level()+1, y.level()+1
+	lx, ly := x.Level()+1, y.Level()+1
 	if lx <= ly && x>>ly == y>>ly {
 		return y
 	} else if ly <= lx && x>>lx == y>>lx {
@@ -186,13 +186,13 @@ func commonAncestor(x, y nodeIndex) nodeIndex {
 
 type leafIndex uint32
 
-// nodeIndex returns the index of the node from a leaf index.
-func (li leafIndex) nodeIndex() nodeIndex {
-	return nodeIndex(2 * li)
+// NodeIndex returns the index of the node from a leaf index.
+func (li leafIndex) NodeIndex() NodeIndex {
+	return NodeIndex(2 * li)
 }
 
-// log2 computes the exponent of the largest power of 2 less than x.
-func log2(x uint32) uint32 {
+// Log2 computes the exponent of the largest power of 2 less than x.
+func Log2(x uint32) uint32 {
 	if x == 0 {
 		return 0
 	}

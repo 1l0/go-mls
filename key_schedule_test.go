@@ -7,7 +7,7 @@ import (
 )
 
 type pskSecretTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	PSKs []struct {
 		PSKID    testBytes `json:"psk_id"`
@@ -20,11 +20,11 @@ type pskSecretTest struct {
 
 func testPSKSecret(t *testing.T, tc *pskSecretTest) {
 	var (
-		pskIDs []preSharedKeyID
+		pskIDs []PreSharedKeyID
 		psks   [][]byte
 	)
 	for _, psk := range tc.PSKs {
-		pskIDs = append(pskIDs, preSharedKeyID{
+		pskIDs = append(pskIDs, PreSharedKeyID{
 			pskType:  pskTypeExternal,
 			pskID:    []byte(psk.PSKID),
 			pskNonce: []byte(psk.PSKNonce),
@@ -32,7 +32,7 @@ func testPSKSecret(t *testing.T, tc *pskSecretTest) {
 		psks = append(psks, []byte(psk.PSK))
 	}
 
-	pskSecret, err := extractPSKSecret(tc.CipherSuite, pskIDs, psks)
+	pskSecret, err := ExtractPSKSecret(tc.CipherSuite, pskIDs, psks)
 	if err != nil {
 		t.Fatalf("extractPSKSecret() = %v", err)
 	}
@@ -53,7 +53,7 @@ func TestPSKSecret(t *testing.T) {
 }
 
 type keyScheduleTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	GroupID           testBytes `json:"group_id"`
 	InitialInitSecret testBytes `json:"initial_init_secret"`
@@ -94,41 +94,41 @@ func testKeySchedule(t *testing.T, tc *keyScheduleTest) {
 	for i, epoch := range tc.Epochs {
 		t.Logf("epoch %d", i)
 
-		ctx := groupContext{
-			version:                 protocolVersionMLS10,
-			cipherSuite:             tc.CipherSuite,
-			groupID:                 GroupID(tc.GroupID),
-			epoch:                   uint64(i),
-			treeHash:                []byte(epoch.TreeHash),
-			confirmedTranscriptHash: []byte(epoch.ConfirmedTranscriptHash),
+		ctx := GroupContext{
+			Version:                 ProtocolVersionMLS10,
+			CipherSuite:             tc.CipherSuite,
+			GroupID:                 GroupID(tc.GroupID),
+			Epoch:                   uint64(i),
+			TreeHash:                []byte(epoch.TreeHash),
+			ConfirmedTranscriptHash: []byte(epoch.ConfirmedTranscriptHash),
 		}
-		rawCtx, err := marshal(&ctx)
+		rawCtx, err := Marshal(&ctx)
 		if err != nil {
 			t.Fatalf("marshal(groupContext) = %v", err)
 		} else if !bytes.Equal(rawCtx, []byte(epoch.GroupContext)) {
 			t.Errorf("marshal(groupContext) = %v, want %v", rawCtx, epoch.GroupContext)
 		}
 
-		joinerSecret, err := ctx.extractJoinerSecret(initSecret, []byte(epoch.CommitSecret))
+		joinerSecret, err := ctx.ExtractJoinerSecret(initSecret, []byte(epoch.CommitSecret))
 		if err != nil {
 			t.Errorf("extractJoinerSecret() = %v", err)
 		} else if !bytes.Equal(joinerSecret, []byte(epoch.JoinerSecret)) {
 			t.Errorf("extractJoinerSecret() = %v, want %v", joinerSecret, epoch.JoinerSecret)
 		}
 
-		welcomeSecret, err := extractWelcomeSecret(ctx.cipherSuite, joinerSecret, []byte(epoch.PSKSecret))
+		welcomeSecret, err := ExtractWelcomeSecret(ctx.CipherSuite, joinerSecret, []byte(epoch.PSKSecret))
 		if err != nil {
 			t.Errorf("extractWelcomeSecret() = %v", err)
 		} else if !bytes.Equal(welcomeSecret, []byte(epoch.WelcomeSecret)) {
 			t.Errorf("extractWelcomeSecret() = %v, want %v", welcomeSecret, epoch.WelcomeSecret)
 		}
 
-		epochSecret, err := ctx.extractEpochSecret(joinerSecret, []byte(epoch.PSKSecret))
+		epochSecret, err := ctx.ExtractEpochSecret(joinerSecret, []byte(epoch.PSKSecret))
 		if err != nil {
 			t.Fatalf("extractEpochSecret() = %v", err)
 		}
 
-		initSecret, err = ctx.cipherSuite.deriveSecret(epochSecret, secretLabelInit)
+		initSecret, err = ctx.CipherSuite.DeriveSecret(epochSecret, secretLabelInit)
 		if err != nil {
 			t.Errorf("deriveSecret(init) = %v", err)
 		} else if !bytes.Equal(initSecret, []byte(epoch.InitSecret)) {
@@ -148,7 +148,7 @@ func testKeySchedule(t *testing.T, tc *keyScheduleTest) {
 			{secretLabelResumption, epoch.ResumptionPSK},
 		}
 		for _, secret := range secrets {
-			sec, err := ctx.cipherSuite.deriveSecret(epochSecret, secret.label)
+			sec, err := ctx.CipherSuite.DeriveSecret(epochSecret, secret.label)
 			if err != nil {
 				t.Errorf("deriveSecret(%v) = %v", string(secret.label), err)
 			} else if !bytes.Equal(sec, []byte(secret.want)) {
@@ -157,7 +157,7 @@ func testKeySchedule(t *testing.T, tc *keyScheduleTest) {
 		}
 
 		externalSecret := []byte(epoch.ExternalSecret)
-		kem, kdf, _ := ctx.cipherSuite.hpke().Params()
+		kem, kdf, _ := ctx.CipherSuite.hpke().Params()
 		// TODO: drop the seed size check, see:
 		// https://github.com/cloudflare/circl/issues/486
 		if kem.Scheme().SeedSize() == kdf.ExtractSize() {
@@ -170,7 +170,7 @@ func testKeySchedule(t *testing.T, tc *keyScheduleTest) {
 		}
 
 		exporterSecret := []byte(epoch.ExporterSecret)
-		b, err := deriveExporter(ctx.cipherSuite, exporterSecret, []byte(epoch.Exporter.Label), []byte(epoch.Exporter.Context), epoch.Exporter.Length)
+		b, err := DeriveExporter(ctx.CipherSuite, exporterSecret, []byte(epoch.Exporter.Label), []byte(epoch.Exporter.Context), epoch.Exporter.Length)
 		if err != nil {
 			t.Errorf("deriveExporter() = %v", err)
 		} else if !bytes.Equal(b, epoch.Exporter.Secret) {
@@ -191,7 +191,7 @@ func TestKeySchedule(t *testing.T) {
 }
 
 type transcriptHashesTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	ConfirmationKey             testBytes `json:"confirmation_key"`
 	AuthenticatedContent        testBytes `json:"authenticated_content"`
@@ -204,25 +204,25 @@ type transcriptHashesTest struct {
 func testTranscriptHashes(t *testing.T, tc *transcriptHashesTest) {
 	cs := tc.CipherSuite
 
-	var authContent authenticatedContent
-	if err := unmarshal([]byte(tc.AuthenticatedContent), &authContent); err != nil {
+	var authContent AuthenticatedContent
+	if err := Unmarshal([]byte(tc.AuthenticatedContent), &authContent); err != nil {
 		t.Fatalf("unmarshal() = %v", err)
 	} else if authContent.content.contentType != contentTypeCommit {
 		t.Fatalf("contentType = %v, want %v", authContent.content.contentType, contentTypeCommit)
 	}
 
-	if !authContent.auth.verifyConfirmationTag(cs, []byte(tc.ConfirmationKey), []byte(tc.ConfirmedTranscriptHashAfter)) {
+	if !authContent.auth.VerifyConfirmationTag(cs, []byte(tc.ConfirmationKey), []byte(tc.ConfirmedTranscriptHashAfter)) {
 		t.Errorf("verifyConfirmationTag() failed")
 	}
 
-	confirmedTranscriptHashAfter, err := authContent.confirmedTranscriptHashInput().hash(cs, []byte(tc.InterimTranscriptHashBefore))
+	confirmedTranscriptHashAfter, err := authContent.ConfirmedTranscriptHashInput().hash(cs, []byte(tc.InterimTranscriptHashBefore))
 	if err != nil {
 		t.Fatalf("confirmedTranscriptHashInput.hash() = %v", err)
 	} else if !bytes.Equal(confirmedTranscriptHashAfter, []byte(tc.ConfirmedTranscriptHashAfter)) {
 		t.Errorf("confirmedTranscriptHashInput.hash() = %v, want %v", confirmedTranscriptHashAfter, tc.ConfirmedTranscriptHashAfter)
 	}
 
-	interimTranscriptHashAfter, err := nextInterimTranscriptHash(cs, confirmedTranscriptHashAfter, authContent.auth.confirmationTag)
+	interimTranscriptHashAfter, err := NextInterimTranscriptHash(cs, confirmedTranscriptHashAfter, authContent.auth.confirmationTag)
 	if err != nil {
 		t.Fatalf("nextInterimTranscriptHash() = %v", err)
 	} else if !bytes.Equal(interimTranscriptHashAfter, []byte(tc.InterimTranscriptHashAfter)) {

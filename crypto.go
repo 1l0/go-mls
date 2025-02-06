@@ -8,79 +8,79 @@ import (
 )
 
 type (
-	hpkePublicKey      []byte
-	signaturePublicKey []byte
+	HPKEPublicKey      []byte
+	SignaturePublicKey []byte
 )
 
-type credentialType uint16
+type CredentialType uint16
 
 // https://www.iana.org/assignments/mls/mls.xhtml#mls-credential-types
 const (
-	credentialTypeBasic credentialType = 0x0001
-	credentialTypeX509  credentialType = 0x0002
+	CredentialTypeBasic CredentialType = 0x0001
+	CredentialTypeX509  CredentialType = 0x0002
 )
 
-type credential struct {
-	credentialType credentialType
-	identity       []byte   // for credentialTypeBasic
-	certificates   [][]byte // for credentialTypeX509
+type Credential struct {
+	CredentialType CredentialType
+	Identity       []byte   // for credentialTypeBasic
+	Certificates   [][]byte // for credentialTypeX509
 }
 
-func (cred *credential) unmarshal(s *cryptobyte.String) error {
-	*cred = credential{}
+func (cred *Credential) Unmarshal(s *cryptobyte.String) error {
+	*cred = Credential{}
 
-	if !s.ReadUint16((*uint16)(&cred.credentialType)) {
+	if !s.ReadUint16((*uint16)(&cred.CredentialType)) {
 		return io.ErrUnexpectedEOF
 	}
 
-	switch cred.credentialType {
-	case credentialTypeBasic:
-		if !readOpaqueVec(s, &cred.identity) {
+	switch cred.CredentialType {
+	case CredentialTypeBasic:
+		if !ReadOpaqueVec(s, &cred.Identity) {
 			return io.ErrUnexpectedEOF
 		}
 		return nil
-	case credentialTypeX509:
-		return readVector(s, func(s *cryptobyte.String) error {
+	case CredentialTypeX509:
+		return ReadVector(s, func(s *cryptobyte.String) error {
 			var cert []byte
-			if !readOpaqueVec(s, &cert) {
+			if !ReadOpaqueVec(s, &cert) {
 				return io.ErrUnexpectedEOF
 			}
-			cred.certificates = append(cred.certificates, cert)
+			cred.Certificates = append(cred.Certificates, cert)
 			return nil
 		})
 	default:
-		return fmt.Errorf("mls: invalid credential type %d", cred.credentialType)
+		return fmt.Errorf("mls: invalid credential type %d", cred.CredentialType)
 	}
 }
 
-func (cred *credential) marshal(b *cryptobyte.Builder) {
-	b.AddUint16(uint16(cred.credentialType))
-	switch cred.credentialType {
-	case credentialTypeBasic:
-		writeOpaqueVec(b, cred.identity)
-	case credentialTypeX509:
-		writeVector(b, len(cred.certificates), func(b *cryptobyte.Builder, i int) {
-			writeOpaqueVec(b, cred.certificates[i])
+func (cred *Credential) Marshal(b *cryptobyte.Builder) {
+	b.AddUint16(uint16(cred.CredentialType))
+	switch cred.CredentialType {
+	case CredentialTypeBasic:
+		WriteOpaqueVec(b, cred.Identity)
+	case CredentialTypeX509:
+		WriteVector(b, len(cred.Certificates), func(b *cryptobyte.Builder, i int) {
+			WriteOpaqueVec(b, cred.Certificates[i])
 		})
 	default:
 		panic("unreachable")
 	}
 }
 
-type hpkeCiphertext struct {
-	kemOutput  []byte
-	ciphertext []byte
+type HPKECiphertext struct {
+	KEMOutput  []byte
+	Ciphertext []byte
 }
 
-func (hpke *hpkeCiphertext) unmarshal(s *cryptobyte.String) error {
-	*hpke = hpkeCiphertext{}
-	if !readOpaqueVec(s, &hpke.kemOutput) || !readOpaqueVec(s, &hpke.ciphertext) {
+func (hpke *HPKECiphertext) unmarshal(s *cryptobyte.String) error {
+	*hpke = HPKECiphertext{}
+	if !ReadOpaqueVec(s, &hpke.KEMOutput) || !ReadOpaqueVec(s, &hpke.Ciphertext) {
 		return io.ErrUnexpectedEOF
 	}
 	return nil
 }
 
-func (hpke *hpkeCiphertext) marshal(b *cryptobyte.Builder) {
-	writeOpaqueVec(b, hpke.kemOutput)
-	writeOpaqueVec(b, hpke.ciphertext)
+func (hpke *HPKECiphertext) marshal(b *cryptobyte.Builder) {
+	WriteOpaqueVec(b, hpke.KEMOutput)
+	WriteOpaqueVec(b, hpke.Ciphertext)
 }

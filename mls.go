@@ -10,7 +10,7 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-func readVarint(s *cryptobyte.String, out *uint32) bool {
+func ReadVarint(s *cryptobyte.String, out *uint32) bool {
 	var b uint8
 	if !s.ReadUint8(&b) {
 		return false
@@ -38,7 +38,7 @@ func readVarint(s *cryptobyte.String, out *uint32) bool {
 	return true
 }
 
-func writeVarint(b *cryptobyte.Builder, n uint32) {
+func WriteVarint(b *cryptobyte.Builder, n uint32) {
 	switch {
 	case n < 1<<6:
 		b.AddUint8(uint8(n))
@@ -51,9 +51,9 @@ func writeVarint(b *cryptobyte.Builder, n uint32) {
 	}
 }
 
-func readOpaqueVec(s *cryptobyte.String, out *[]byte) bool {
+func ReadOpaqueVec(s *cryptobyte.String, out *[]byte) bool {
 	var n uint32
-	if !readVarint(s, &n) {
+	if !ReadVarint(s, &n) {
 		return false
 	}
 
@@ -66,18 +66,18 @@ func readOpaqueVec(s *cryptobyte.String, out *[]byte) bool {
 	return true
 }
 
-func writeOpaqueVec(b *cryptobyte.Builder, value []byte) {
+func WriteOpaqueVec(b *cryptobyte.Builder, value []byte) {
 	if len(value) >= 1<<32 {
 		b.SetError(fmt.Errorf("mls: opaque size exceeds maximum value of uint32"))
 		return
 	}
-	writeVarint(b, uint32(len(value)))
+	WriteVarint(b, uint32(len(value)))
 	b.AddBytes(value)
 }
 
-func readVector(s *cryptobyte.String, f func(s *cryptobyte.String) error) error {
+func ReadVector(s *cryptobyte.String, f func(s *cryptobyte.String) error) error {
 	var n uint32
-	if !readVarint(s, &n) {
+	if !ReadVarint(s, &n) {
 		return io.ErrUnexpectedEOF
 	}
 	var vec []byte
@@ -93,7 +93,7 @@ func readVector(s *cryptobyte.String, f func(s *cryptobyte.String) error) error 
 	return nil
 }
 
-func writeVector(b *cryptobyte.Builder, n int, f func(b *cryptobyte.Builder, i int)) {
+func WriteVector(b *cryptobyte.Builder, n int, f func(b *cryptobyte.Builder, i int)) {
 	// We don't know the total size in advance, and the vector is prefixed with
 	// a varint, so we can't avoid the temporary buffer here
 	var child cryptobyte.Builder
@@ -107,10 +107,10 @@ func writeVector(b *cryptobyte.Builder, n int, f func(b *cryptobyte.Builder, i i
 		return
 	}
 
-	writeOpaqueVec(b, raw)
+	WriteOpaqueVec(b, raw)
 }
 
-func readOptional(s *cryptobyte.String, present *bool) bool {
+func ReadOptional(s *cryptobyte.String, present *bool) bool {
 	var u8 uint8
 	if !s.ReadUint8(&u8) {
 		return false
@@ -126,7 +126,7 @@ func readOptional(s *cryptobyte.String, present *bool) bool {
 	return true
 }
 
-func writeOptional(b *cryptobyte.Builder, present bool) {
+func WriteOptional(b *cryptobyte.Builder, present bool) {
 	u8 := uint8(0)
 	if present {
 		u8 = 1
@@ -134,17 +134,17 @@ func writeOptional(b *cryptobyte.Builder, present bool) {
 	b.AddUint8(u8)
 }
 
-type unmarshaler interface {
-	unmarshal(*cryptobyte.String) error
+type Unmarshaler interface {
+	Unmarshal(*cryptobyte.String) error
 }
 
-type marshaler interface {
-	marshal(*cryptobyte.Builder)
+type Marshaler interface {
+	Marshal(*cryptobyte.Builder)
 }
 
-func unmarshal(raw []byte, v unmarshaler) error {
+func Unmarshal(raw []byte, v Unmarshaler) error {
 	s := cryptobyte.String(raw)
-	if err := v.unmarshal(&s); err != nil {
+	if err := v.Unmarshal(&s); err != nil {
 		return err
 	}
 	if !s.Empty() {
@@ -153,8 +153,8 @@ func unmarshal(raw []byte, v unmarshaler) error {
 	return nil
 }
 
-func marshal(v marshaler) ([]byte, error) {
+func Marshal(v Marshaler) ([]byte, error) {
 	var b cryptobyte.Builder
-	v.marshal(&b)
+	v.Marshal(&b)
 	return b.Bytes()
 }

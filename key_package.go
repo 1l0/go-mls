@@ -8,56 +8,56 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-type keyPackage struct {
-	version     protocolVersion
-	cipherSuite cipherSuite
-	initKey     hpkePublicKey
-	leafNode    leafNode
-	extensions  []extension
-	signature   []byte
+type KeyPackage struct {
+	Version     ProtocolVersion
+	CipherSuite CipherSuite
+	InitKey     HPKEPublicKey
+	LeafNode    LeafNode
+	Extensions  []Extension
+	Signature   []byte
 }
 
-func (pkg *keyPackage) unmarshal(s *cryptobyte.String) error {
-	*pkg = keyPackage{}
+func (pkg *KeyPackage) Unmarshal(s *cryptobyte.String) error {
+	*pkg = KeyPackage{}
 
-	ok := s.ReadUint16((*uint16)(&pkg.version)) &&
-		s.ReadUint16((*uint16)(&pkg.cipherSuite)) &&
-		readOpaqueVec(s, (*[]byte)(&pkg.initKey))
+	ok := s.ReadUint16((*uint16)(&pkg.Version)) &&
+		s.ReadUint16((*uint16)(&pkg.CipherSuite)) &&
+		ReadOpaqueVec(s, (*[]byte)(&pkg.InitKey))
 	if !ok {
 		return io.ErrUnexpectedEOF
 	}
 
-	if err := pkg.leafNode.unmarshal(s); err != nil {
+	if err := pkg.LeafNode.Unmarshal(s); err != nil {
 		return err
 	}
 
-	exts, err := unmarshalExtensionVec(s)
+	exts, err := UnmarshalExtensionVec(s)
 	if err != nil {
 		return err
 	}
-	pkg.extensions = exts
+	pkg.Extensions = exts
 
-	if !readOpaqueVec(s, &pkg.signature) {
+	if !ReadOpaqueVec(s, &pkg.Signature) {
 		return err
 	}
 
 	return nil
 }
 
-func (pkg *keyPackage) marshalTBS(b *cryptobyte.Builder) {
-	b.AddUint16(uint16(pkg.version))
-	b.AddUint16(uint16(pkg.cipherSuite))
-	writeOpaqueVec(b, []byte(pkg.initKey))
-	pkg.leafNode.marshal(b)
-	marshalExtensionVec(b, pkg.extensions)
+func (pkg *KeyPackage) marshalTBS(b *cryptobyte.Builder) {
+	b.AddUint16(uint16(pkg.Version))
+	b.AddUint16(uint16(pkg.CipherSuite))
+	WriteOpaqueVec(b, []byte(pkg.InitKey))
+	pkg.LeafNode.Marshal(b)
+	MarshalExtensionVec(b, pkg.Extensions)
 }
 
-func (pkg *keyPackage) marshal(b *cryptobyte.Builder) {
+func (pkg *KeyPackage) Marshal(b *cryptobyte.Builder) {
 	pkg.marshalTBS(b)
-	writeOpaqueVec(b, pkg.signature)
+	WriteOpaqueVec(b, pkg.Signature)
 }
 
-func (pkg *keyPackage) verifySignature() bool {
+func (pkg *KeyPackage) verifySignature() bool {
 	var b cryptobyte.Builder
 	pkg.marshalTBS(&b)
 	rawTBS, err := b.Bytes()
@@ -65,38 +65,38 @@ func (pkg *keyPackage) verifySignature() bool {
 		return false
 	}
 
-	return pkg.cipherSuite.verifyWithLabel(pkg.leafNode.signatureKey, []byte("KeyPackageTBS"), rawTBS, pkg.signature)
+	return pkg.CipherSuite.VerifyWithLabel(pkg.LeafNode.signatureKey, []byte("KeyPackageTBS"), rawTBS, pkg.Signature)
 }
 
-// verify performs KeyPackage verification as described in RFC 9420 section 10.1.
-func (pkg *keyPackage) verify(ctx *groupContext) error {
-	if pkg.version != ctx.version {
+// Verify performs KeyPackage verification as described in RFC 9420 section 10.1.
+func (pkg *KeyPackage) Verify(ctx *GroupContext) error {
+	if pkg.Version != ctx.Version {
 		return fmt.Errorf("mls: key package version doesn't match group context")
 	}
-	if pkg.cipherSuite != ctx.cipherSuite {
+	if pkg.CipherSuite != ctx.CipherSuite {
 		return fmt.Errorf("mls: cipher suite doesn't match group context")
 	}
-	if pkg.leafNode.leafNodeSource != leafNodeSourceKeyPackage {
+	if pkg.LeafNode.leafNodeSource != LeafNodeSourceKeyPackage {
 		return fmt.Errorf("mls: key package contains a leaf node with an invalid source")
 	}
 	if !pkg.verifySignature() {
 		return fmt.Errorf("mls: invalid key package signature")
 	}
-	if bytes.Equal(pkg.leafNode.encryptionKey, pkg.initKey) {
+	if bytes.Equal(pkg.LeafNode.encryptionKey, pkg.InitKey) {
 		return fmt.Errorf("mls: key package encryption key and init key are identical")
 	}
 	return nil
 }
 
-func (pkg *keyPackage) generateRef() (keyPackageRef, error) {
+func (pkg *KeyPackage) GenerateRef() (keyPackageRef, error) {
 	var b cryptobyte.Builder
-	pkg.marshal(&b)
+	pkg.Marshal(&b)
 	raw, err := b.Bytes()
 	if err != nil {
 		return nil, err
 	}
 
-	hash, err := pkg.cipherSuite.refHash([]byte("MLS 1.0 KeyPackage Reference"), raw)
+	hash, err := pkg.CipherSuite.refHash([]byte("MLS 1.0 KeyPackage Reference"), raw)
 	if err != nil {
 		return nil, err
 	}

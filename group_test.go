@@ -7,7 +7,7 @@ import (
 )
 
 type welcomeTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	InitPriv  testBytes `json:"init_priv"`
 	SignerPub testBytes `json:"signer_pub"`
@@ -17,40 +17,40 @@ type welcomeTest struct {
 }
 
 func testWelcome(t *testing.T, tc *welcomeTest) {
-	var welcomeMsg mlsMessage
-	if err := welcomeMsg.unmarshal(tc.Welcome.ByteString()); err != nil {
+	var welcomeMsg MLSMessage
+	if err := welcomeMsg.Unmarshal(tc.Welcome.ByteString()); err != nil {
 		t.Fatalf("unmarshal(welcome) = %v", err)
-	} else if welcomeMsg.wireFormat != wireFormatMLSWelcome {
-		t.Fatalf("wireFormat = %v, want %v", welcomeMsg.wireFormat, wireFormatMLSWelcome)
+	} else if welcomeMsg.wireFormat != WireFormatMLSWelcome {
+		t.Fatalf("wireFormat = %v, want %v", welcomeMsg.wireFormat, WireFormatMLSWelcome)
 	}
 	welcome := welcomeMsg.welcome
 
-	var keyPackageMsg mlsMessage
-	if err := keyPackageMsg.unmarshal(tc.KeyPackage.ByteString()); err != nil {
+	var keyPackageMsg MLSMessage
+	if err := keyPackageMsg.Unmarshal(tc.KeyPackage.ByteString()); err != nil {
 		t.Fatalf("unmarshal(keyPackage) = %v", err)
-	} else if keyPackageMsg.wireFormat != wireFormatMLSKeyPackage {
-		t.Fatalf("wireFormat = %v, want %v", keyPackageMsg.wireFormat, wireFormatMLSKeyPackage)
+	} else if keyPackageMsg.wireFormat != WireFormatMLSKeyPackage {
+		t.Fatalf("wireFormat = %v, want %v", keyPackageMsg.wireFormat, WireFormatMLSKeyPackage)
 	}
 	keyPackage := keyPackageMsg.keyPackage
 
-	keyPackageRef, err := keyPackage.generateRef()
+	keyPackageRef, err := keyPackage.GenerateRef()
 	if err != nil {
 		t.Fatalf("keyPackage.generateRef() = %v", err)
 	}
 
-	groupSecrets, err := welcome.decryptGroupSecrets(keyPackageRef, []byte(tc.InitPriv))
+	groupSecrets, err := welcome.DecryptGroupSecrets(keyPackageRef, []byte(tc.InitPriv))
 	if err != nil {
 		t.Fatalf("welcome.decryptGroupSecrets() = %v", err)
 	}
 
-	groupInfo, err := welcome.decryptGroupInfo(groupSecrets.joinerSecret, nil)
+	groupInfo, err := welcome.DecryptGroupInfo(groupSecrets.joinerSecret, nil)
 	if err != nil {
 		t.Fatalf("welcome.decryptGroupInfo() = %v", err)
 	}
-	if !groupInfo.verifySignature(signaturePublicKey(tc.SignerPub)) {
+	if !groupInfo.VerifySignature(SignaturePublicKey(tc.SignerPub)) {
 		t.Errorf("groupInfo.verifySignature() failed")
 	}
-	if !groupInfo.verifyConfirmationTag(groupSecrets.joinerSecret, nil) {
+	if !groupInfo.VerifyConfirmationTag(groupSecrets.joinerSecret, nil) {
 		t.Errorf("groupInfo.verifyConfirmationTag() failed")
 	}
 }
@@ -67,7 +67,7 @@ func TestWelcome(t *testing.T) {
 }
 
 type messageProtectionTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	GroupID                 testBytes `json:"group_id"`
 	Epoch                   uint64    `json:"epoch"`
@@ -93,33 +93,33 @@ type messageProtectionTest struct {
 	ApplicationPriv testBytes `json:"application_priv"`
 }
 
-func testMessageProtectionPub(t *testing.T, tc *messageProtectionTest, ctx *groupContext, wantRaw, rawPub []byte) {
-	var msg mlsMessage
-	if err := unmarshal(rawPub, &msg); err != nil {
+func testMessageProtectionPub(t *testing.T, tc *messageProtectionTest, ctx *GroupContext, wantRaw, rawPub []byte) {
+	var msg MLSMessage
+	if err := Unmarshal(rawPub, &msg); err != nil {
 		t.Fatalf("unmarshal() = %v", err)
-	} else if msg.wireFormat != wireFormatMLSPublicMessage {
-		t.Fatalf("unmarshal(): wireFormat = %v, want %v", msg.wireFormat, wireFormatMLSPublicMessage)
+	} else if msg.wireFormat != WireFormatMLSPublicMessage {
+		t.Fatalf("unmarshal(): wireFormat = %v, want %v", msg.wireFormat, WireFormatMLSPublicMessage)
 	}
 	pubMsg := msg.publicMessage
 
 	verifyPublicMessage(t, tc, ctx, pubMsg, wantRaw)
 
-	pubMsg, err := signPublicMessage(tc.CipherSuite, []byte(tc.SignaturePriv), &pubMsg.content, ctx)
+	pubMsg, err := SignPublicMessage(tc.CipherSuite, []byte(tc.SignaturePriv), &pubMsg.content, ctx)
 	if err != nil {
 		t.Errorf("signPublicMessage() = %v", err)
 	}
-	if err := pubMsg.signMembershipTag(tc.CipherSuite, []byte(tc.MembershipKey), ctx); err != nil {
+	if err := pubMsg.SignMembershipTag(tc.CipherSuite, []byte(tc.MembershipKey), ctx); err != nil {
 		t.Errorf("signMembershipTag() = %v", err)
 	}
 	verifyPublicMessage(t, tc, ctx, pubMsg, wantRaw)
 }
 
-func verifyPublicMessage(t *testing.T, tc *messageProtectionTest, ctx *groupContext, pubMsg *publicMessage, wantRaw []byte) {
-	authContent := pubMsg.authenticatedContent()
-	if !authContent.verifySignature(tc.CipherSuite, []byte(tc.SignaturePub), ctx) {
+func verifyPublicMessage(t *testing.T, tc *messageProtectionTest, ctx *GroupContext, pubMsg *PublicMessage, wantRaw []byte) {
+	authContent := pubMsg.AuthenticatedContent()
+	if !authContent.VerifySignature(tc.CipherSuite, []byte(tc.SignaturePub), ctx) {
 		t.Errorf("verifySignature() failed")
 	}
-	if !pubMsg.verifyMembershipTag(tc.CipherSuite, []byte(tc.MembershipKey), ctx) {
+	if !pubMsg.VerifyMembershipTag(tc.CipherSuite, []byte(tc.MembershipKey), ctx) {
 		t.Errorf("verifyMembershipTag() failed")
 	}
 
@@ -131,9 +131,9 @@ func verifyPublicMessage(t *testing.T, tc *messageProtectionTest, ctx *groupCont
 	case contentTypeApplication:
 		raw = pubMsg.content.applicationData
 	case contentTypeProposal:
-		raw, err = marshal(pubMsg.content.proposal)
+		raw, err = Marshal(pubMsg.content.proposal)
 	case contentTypeCommit:
-		raw, err = marshal(pubMsg.content.commit)
+		raw, err = Marshal(pubMsg.content.commit)
 	default:
 		t.Errorf("unexpected content type %v", pubMsg.content.contentType)
 	}
@@ -144,37 +144,37 @@ func verifyPublicMessage(t *testing.T, tc *messageProtectionTest, ctx *groupCont
 	}
 }
 
-func testMessageProtectionPriv(t *testing.T, tc *messageProtectionTest, ctx *groupContext, wantRaw, rawPriv []byte) {
-	var msg mlsMessage
-	if err := unmarshal(rawPriv, &msg); err != nil {
+func testMessageProtectionPriv(t *testing.T, tc *messageProtectionTest, ctx *GroupContext, wantRaw, rawPriv []byte) {
+	var msg MLSMessage
+	if err := Unmarshal(rawPriv, &msg); err != nil {
 		t.Fatalf("unmarshal() = %v", err)
-	} else if msg.wireFormat != wireFormatMLSPrivateMessage {
-		t.Fatalf("unmarshal(): wireFormat = %v, want %v", msg.wireFormat, wireFormatMLSPrivateMessage)
+	} else if msg.wireFormat != WireFormatMLSPrivateMessage {
+		t.Fatalf("unmarshal(): wireFormat = %v, want %v", msg.wireFormat, WireFormatMLSPrivateMessage)
 	}
 	privMsg := msg.privateMessage
 
-	tree, err := deriveSecretTree(tc.CipherSuite, numLeaves(2), []byte(tc.EncryptionSecret))
+	tree, err := DeriveSecretTree(tc.CipherSuite, NumLeaves(2), []byte(tc.EncryptionSecret))
 	if err != nil {
 		t.Fatalf("deriveSecretTree() = %v", err)
 	}
 
-	label := ratchetLabelFromContentType(privMsg.contentType)
+	label := RatchetLabelFromContentType(privMsg.contentType)
 	li := leafIndex(1)
-	secret, err := tree.deriveRatchetRoot(tc.CipherSuite, li.nodeIndex(), label)
+	secret, err := tree.DeriveRatchetRoot(tc.CipherSuite, li.NodeIndex(), label)
 	if err != nil {
 		t.Fatalf("deriveRatchetRoot() = %v", err)
 	}
 
 	content := decryptPrivateMessage(t, tc, ctx, secret, privMsg, wantRaw)
 
-	senderData, err := newSenderData(li, 0) // TODO: set generation > 0
+	senderData, err := NewSenderData(li, 0) // TODO: set generation > 0
 	if err != nil {
 		t.Fatalf("newSenderData() = %v", err)
 	}
-	framedContent := framedContent{
+	framedContent := FramedContent{
 		groupID: GroupID(tc.GroupID),
 		epoch:   tc.Epoch,
-		sender: sender{
+		sender: Sender{
 			senderType: senderTypeMember,
 			leafIndex:  li,
 		},
@@ -183,33 +183,33 @@ func testMessageProtectionPriv(t *testing.T, tc *messageProtectionTest, ctx *gro
 		proposal:        content.proposal,
 		commit:          content.commit,
 	}
-	privMsg, err = encryptPrivateMessage(tc.CipherSuite, []byte(tc.SignaturePriv), secret, []byte(tc.SenderDataSecret), &framedContent, senderData, ctx)
+	privMsg, err = EncryptPrivateMessage(tc.CipherSuite, []byte(tc.SignaturePriv), secret, []byte(tc.SenderDataSecret), &framedContent, senderData, ctx)
 	if err != nil {
 		t.Fatalf("encryptPrivateMessage() = %v", err)
 	}
 	decryptPrivateMessage(t, tc, ctx, secret, privMsg, wantRaw)
 }
 
-func decryptPrivateMessage(t *testing.T, tc *messageProtectionTest, ctx *groupContext, secret ratchetSecret, privMsg *privateMessage, wantRaw []byte) *privateMessageContent {
-	senderData, err := privMsg.decryptSenderData(tc.CipherSuite, []byte(tc.SenderDataSecret))
+func decryptPrivateMessage(t *testing.T, tc *messageProtectionTest, ctx *GroupContext, secret RatchetSecret, privMsg *PrivateMessage, wantRaw []byte) *PrivateMessageContent {
+	senderData, err := privMsg.DecryptSenderData(tc.CipherSuite, []byte(tc.SenderDataSecret))
 	if err != nil {
 		t.Fatalf("decryptSenderData() = %v", err)
 	}
 
 	for secret.generation != senderData.generation {
-		secret, err = secret.deriveNext(tc.CipherSuite)
+		secret, err = secret.DeriveNext(tc.CipherSuite)
 		if err != nil {
 			t.Fatalf("deriveNext() = %v", err)
 		}
 	}
 
-	content, err := privMsg.decryptContent(tc.CipherSuite, secret, senderData.reuseGuard)
+	content, err := privMsg.DecryptContent(tc.CipherSuite, secret, senderData.reuseGuard)
 	if err != nil {
 		t.Fatalf("decryptContent() = %v", err)
 	}
 
-	authContent := privMsg.authenticatedContent(senderData, content)
-	if !authContent.verifySignature(tc.CipherSuite, []byte(tc.SignaturePub), ctx) {
+	authContent := privMsg.AuthenticatedContent(senderData, content)
+	if !authContent.VerifySignature(tc.CipherSuite, []byte(tc.SignaturePub), ctx) {
 		t.Errorf("verifySignature() failed")
 	}
 
@@ -218,9 +218,9 @@ func decryptPrivateMessage(t *testing.T, tc *messageProtectionTest, ctx *groupCo
 	case contentTypeApplication:
 		raw = content.applicationData
 	case contentTypeProposal:
-		raw, err = marshal(content.proposal)
+		raw, err = Marshal(content.proposal)
 	case contentTypeCommit:
-		raw, err = marshal(content.commit)
+		raw, err = Marshal(content.commit)
 	default:
 		t.Errorf("unexpected content type %v", privMsg.contentType)
 	}
@@ -234,13 +234,13 @@ func decryptPrivateMessage(t *testing.T, tc *messageProtectionTest, ctx *groupCo
 }
 
 func testMessageProtection(t *testing.T, tc *messageProtectionTest) {
-	ctx := groupContext{
-		version:                 protocolVersionMLS10,
-		cipherSuite:             tc.CipherSuite,
-		groupID:                 GroupID(tc.GroupID),
-		epoch:                   tc.Epoch,
-		treeHash:                []byte(tc.TreeHash),
-		confirmedTranscriptHash: []byte(tc.ConfirmedTranscriptHash),
+	ctx := GroupContext{
+		Version:                 ProtocolVersionMLS10,
+		CipherSuite:             tc.CipherSuite,
+		GroupID:                 GroupID(tc.GroupID),
+		Epoch:                   tc.Epoch,
+		TreeHash:                []byte(tc.TreeHash),
+		ConfirmedTranscriptHash: []byte(tc.ConfirmedTranscriptHash),
 	}
 
 	wireFormats := []struct {

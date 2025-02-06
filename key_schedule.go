@@ -7,67 +7,67 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-type groupContext struct {
-	version                 protocolVersion
-	cipherSuite             cipherSuite
-	groupID                 GroupID
-	epoch                   uint64
-	treeHash                []byte
-	confirmedTranscriptHash []byte
-	extensions              []extension
+type GroupContext struct {
+	Version                 ProtocolVersion
+	CipherSuite             CipherSuite
+	GroupID                 GroupID
+	Epoch                   uint64
+	TreeHash                []byte
+	ConfirmedTranscriptHash []byte
+	Extensions              []Extension
 }
 
-func (ctx *groupContext) unmarshal(s *cryptobyte.String) error {
-	*ctx = groupContext{}
+func (ctx *GroupContext) Unmarshal(s *cryptobyte.String) error {
+	*ctx = GroupContext{}
 
-	ok := s.ReadUint16((*uint16)(&ctx.version)) &&
-		s.ReadUint16((*uint16)(&ctx.cipherSuite)) &&
-		readOpaqueVec(s, (*[]byte)(&ctx.groupID)) &&
-		s.ReadUint64(&ctx.epoch) &&
-		readOpaqueVec(s, &ctx.treeHash) &&
-		readOpaqueVec(s, &ctx.confirmedTranscriptHash)
+	ok := s.ReadUint16((*uint16)(&ctx.Version)) &&
+		s.ReadUint16((*uint16)(&ctx.CipherSuite)) &&
+		ReadOpaqueVec(s, (*[]byte)(&ctx.GroupID)) &&
+		s.ReadUint64(&ctx.Epoch) &&
+		ReadOpaqueVec(s, &ctx.TreeHash) &&
+		ReadOpaqueVec(s, &ctx.ConfirmedTranscriptHash)
 	if !ok {
 		return io.ErrUnexpectedEOF
 	}
 
-	if ctx.version != protocolVersionMLS10 {
-		return fmt.Errorf("mls: invalid protocol version %d", ctx.version)
+	if ctx.Version != ProtocolVersionMLS10 {
+		return fmt.Errorf("mls: invalid protocol version %d", ctx.Version)
 	}
 
-	exts, err := unmarshalExtensionVec(s)
+	exts, err := UnmarshalExtensionVec(s)
 	if err != nil {
 		return err
 	}
-	ctx.extensions = exts
+	ctx.Extensions = exts
 
 	return nil
 }
 
-func (ctx *groupContext) marshal(b *cryptobyte.Builder) {
-	b.AddUint16(uint16(ctx.version))
-	b.AddUint16(uint16(ctx.cipherSuite))
-	writeOpaqueVec(b, []byte(ctx.groupID))
-	b.AddUint64(ctx.epoch)
-	writeOpaqueVec(b, ctx.treeHash)
-	writeOpaqueVec(b, ctx.confirmedTranscriptHash)
-	marshalExtensionVec(b, ctx.extensions)
+func (ctx *GroupContext) Marshal(b *cryptobyte.Builder) {
+	b.AddUint16(uint16(ctx.Version))
+	b.AddUint16(uint16(ctx.CipherSuite))
+	WriteOpaqueVec(b, []byte(ctx.GroupID))
+	b.AddUint64(ctx.Epoch)
+	WriteOpaqueVec(b, ctx.TreeHash)
+	WriteOpaqueVec(b, ctx.ConfirmedTranscriptHash)
+	MarshalExtensionVec(b, ctx.Extensions)
 }
 
-func (ctx *groupContext) extractJoinerSecret(prevInitSecret, commitSecret []byte) ([]byte, error) {
-	cs := ctx.cipherSuite
+func (ctx *GroupContext) ExtractJoinerSecret(prevInitSecret, commitSecret []byte) ([]byte, error) {
+	cs := ctx.CipherSuite
 	_, kdf, _ := cs.hpke().Params()
 
 	extracted := kdf.Extract(commitSecret, prevInitSecret)
 
-	rawGroupContext, err := marshal(ctx)
+	rawGroupContext, err := Marshal(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return cs.expandWithLabel(extracted, []byte("joiner"), rawGroupContext, uint16(kdf.ExtractSize()))
+	return cs.ExpandWithLabel(extracted, []byte("joiner"), rawGroupContext, uint16(kdf.ExtractSize()))
 }
 
-func (ctx *groupContext) extractEpochSecret(joinerSecret, pskSecret []byte) ([]byte, error) {
-	cs := ctx.cipherSuite
+func (ctx *GroupContext) ExtractEpochSecret(joinerSecret, pskSecret []byte) ([]byte, error) {
+	cs := ctx.CipherSuite
 	_, kdf, _ := cs.hpke().Params()
 
 	// TODO de-duplicate with extractWelcomeSecret
@@ -76,14 +76,14 @@ func (ctx *groupContext) extractEpochSecret(joinerSecret, pskSecret []byte) ([]b
 	}
 	extracted := kdf.Extract(pskSecret, joinerSecret)
 
-	rawGroupContext, err := marshal(ctx)
+	rawGroupContext, err := Marshal(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return cs.expandWithLabel(extracted, []byte("epoch"), rawGroupContext, uint16(kdf.ExtractSize()))
+	return cs.ExpandWithLabel(extracted, []byte("epoch"), rawGroupContext, uint16(kdf.ExtractSize()))
 }
 
-func extractWelcomeSecret(cs cipherSuite, joinerSecret, pskSecret []byte) ([]byte, error) {
+func ExtractWelcomeSecret(cs CipherSuite, joinerSecret, pskSecret []byte) ([]byte, error) {
 	_, kdf, _ := cs.hpke().Params()
 
 	if pskSecret == nil {
@@ -91,11 +91,11 @@ func extractWelcomeSecret(cs cipherSuite, joinerSecret, pskSecret []byte) ([]byt
 	}
 	extracted := kdf.Extract(pskSecret, joinerSecret)
 
-	return cs.deriveSecret(extracted, []byte("welcome"))
+	return cs.DeriveSecret(extracted, []byte("welcome"))
 }
 
-func deriveExporter(cs cipherSuite, exporterSecret, label, context []byte, length uint16) ([]byte, error) {
-	derived, err := cs.deriveSecret(exporterSecret, label)
+func DeriveExporter(cs CipherSuite, exporterSecret, label, context []byte, length uint16) ([]byte, error) {
+	derived, err := cs.DeriveSecret(exporterSecret, label)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func deriveExporter(cs cipherSuite, exporterSecret, label, context []byte, lengt
 	h := cs.hash().New()
 	h.Write(context)
 
-	return cs.expandWithLabel(derived, []byte("exported"), h.Sum(nil), length)
+	return cs.ExpandWithLabel(derived, []byte("exported"), h.Sum(nil), length)
 }
 
 var (
@@ -118,24 +118,24 @@ var (
 	secretLabelAuthentication = []byte("authentication")
 )
 
-type confirmedTranscriptHashInput struct {
-	wireFormat wireFormat
-	content    framedContent
+type ConfirmedTranscriptHashInput struct {
+	wireFormat WireFormat
+	content    FramedContent
 	signature  []byte
 }
 
-func (input *confirmedTranscriptHashInput) marshal(b *cryptobyte.Builder) {
+func (input *ConfirmedTranscriptHashInput) Marshal(b *cryptobyte.Builder) {
 	if input.content.contentType != contentTypeCommit {
 		b.SetError(fmt.Errorf("mls: confirmedTranscriptHashInput can only contain contentTypeCommit"))
 		return
 	}
-	input.wireFormat.marshal(b)
+	input.wireFormat.Marshal(b)
 	input.content.marshal(b)
-	writeOpaqueVec(b, input.signature)
+	WriteOpaqueVec(b, input.signature)
 }
 
-func (input *confirmedTranscriptHashInput) hash(cs cipherSuite, interimTranscriptHashBefore []byte) ([]byte, error) {
-	rawInput, err := marshal(input)
+func (input *ConfirmedTranscriptHashInput) hash(cs CipherSuite, interimTranscriptHashBefore []byte) ([]byte, error) {
+	rawInput, err := Marshal(input)
 	if err != nil {
 		return nil, err
 	}
@@ -146,9 +146,9 @@ func (input *confirmedTranscriptHashInput) hash(cs cipherSuite, interimTranscrip
 	return h.Sum(nil), nil
 }
 
-func nextInterimTranscriptHash(cs cipherSuite, confirmedTranscriptHash, confirmationTag []byte) ([]byte, error) {
+func NextInterimTranscriptHash(cs CipherSuite, confirmedTranscriptHash, confirmationTag []byte) ([]byte, error) {
 	var b cryptobyte.Builder
-	writeOpaqueVec(&b, confirmationTag)
+	WriteOpaqueVec(&b, confirmationTag)
 	rawInput, err := b.Bytes()
 	if err != nil {
 		return nil, err
@@ -167,7 +167,7 @@ const (
 	pskTypeResumption pskType = 2
 )
 
-func (t *pskType) unmarshal(s *cryptobyte.String) error {
+func (t *pskType) Unmarshal(s *cryptobyte.String) error {
 	if !s.ReadUint8((*uint8)(t)) {
 		return io.ErrUnexpectedEOF
 	}
@@ -179,94 +179,94 @@ func (t *pskType) unmarshal(s *cryptobyte.String) error {
 	}
 }
 
-func (t pskType) marshal(b *cryptobyte.Builder) {
+func (t pskType) Marshal(b *cryptobyte.Builder) {
 	b.AddUint8(uint8(t))
 }
 
-type resumptionPSKUsage uint8
+type ResumptionPSKUsage uint8
 
 const (
-	resumptionPSKUsageApplication resumptionPSKUsage = 1
-	resumptionPSKUsageReinit      resumptionPSKUsage = 2
-	resumptionPSKUsageBranch      resumptionPSKUsage = 3
+	ResumptionPSKUsageApplication ResumptionPSKUsage = 1
+	ResumptionPSKUsageReinit      ResumptionPSKUsage = 2
+	ResumptionPSKUsageBranch      ResumptionPSKUsage = 3
 )
 
-func (usage *resumptionPSKUsage) unmarshal(s *cryptobyte.String) error {
+func (usage *ResumptionPSKUsage) Unmarshal(s *cryptobyte.String) error {
 	if !s.ReadUint8((*uint8)(usage)) {
 		return io.ErrUnexpectedEOF
 	}
 	switch *usage {
-	case resumptionPSKUsageApplication, resumptionPSKUsageReinit, resumptionPSKUsageBranch:
+	case ResumptionPSKUsageApplication, ResumptionPSKUsageReinit, ResumptionPSKUsageBranch:
 		return nil
 	default:
 		return fmt.Errorf("mls: invalid resumption PSK usage %d", *usage)
 	}
 }
 
-func (usage resumptionPSKUsage) marshal(b *cryptobyte.Builder) {
+func (usage ResumptionPSKUsage) Marshal(b *cryptobyte.Builder) {
 	b.AddUint8(uint8(usage))
 }
 
-type preSharedKeyID struct {
+type PreSharedKeyID struct {
 	pskType pskType
 
 	// for pskTypeExternal
 	pskID []byte
 
 	// for pskTypeResumption
-	usage      resumptionPSKUsage
+	usage      ResumptionPSKUsage
 	pskGroupID GroupID
 	pskEpoch   uint64
 
 	pskNonce []byte
 }
 
-func (id *preSharedKeyID) unmarshal(s *cryptobyte.String) error {
-	*id = preSharedKeyID{}
+func (id *PreSharedKeyID) Unmarshal(s *cryptobyte.String) error {
+	*id = PreSharedKeyID{}
 
-	if err := id.pskType.unmarshal(s); err != nil {
+	if err := id.pskType.Unmarshal(s); err != nil {
 		return err
 	}
 
 	switch id.pskType {
 	case pskTypeExternal:
-		if !readOpaqueVec(s, &id.pskID) {
+		if !ReadOpaqueVec(s, &id.pskID) {
 			return io.ErrUnexpectedEOF
 		}
 	case pskTypeResumption:
-		if err := id.usage.unmarshal(s); err != nil {
+		if err := id.usage.Unmarshal(s); err != nil {
 			return err
 		}
-		if !readOpaqueVec(s, (*[]byte)(&id.pskGroupID)) || !s.ReadUint64(&id.pskEpoch) {
+		if !ReadOpaqueVec(s, (*[]byte)(&id.pskGroupID)) || !s.ReadUint64(&id.pskEpoch) {
 			return io.ErrUnexpectedEOF
 		}
 	default:
 		panic("unreachable")
 	}
 
-	if !readOpaqueVec(s, &id.pskNonce) {
+	if !ReadOpaqueVec(s, &id.pskNonce) {
 		return io.ErrUnexpectedEOF
 	}
 
 	return nil
 }
 
-func (id *preSharedKeyID) marshal(b *cryptobyte.Builder) {
-	id.pskType.marshal(b)
+func (id *PreSharedKeyID) Marshal(b *cryptobyte.Builder) {
+	id.pskType.Marshal(b)
 	switch id.pskType {
 	case pskTypeExternal:
-		writeOpaqueVec(b, id.pskID)
+		WriteOpaqueVec(b, id.pskID)
 	case pskTypeResumption:
-		id.usage.marshal(b)
-		writeOpaqueVec(b, []byte(id.pskGroupID))
+		id.usage.Marshal(b)
+		WriteOpaqueVec(b, []byte(id.pskGroupID))
 		b.AddUint64(id.pskEpoch)
 	default:
 		panic("unreachable")
 	}
-	writeOpaqueVec(b, id.pskNonce)
+	WriteOpaqueVec(b, id.pskNonce)
 }
 
-func extractPSKSecret(cs cipherSuite, pskIDs []preSharedKeyID, psks [][]byte) ([]byte, error) {
+func ExtractPSKSecret(cs CipherSuite, pskIDs []PreSharedKeyID, psks [][]byte) ([]byte, error) {
 	if len(pskIDs) != len(psks) {
 		return nil, fmt.Errorf("mls: got %v PSK IDs and %v PSKs, want same number", len(pskIDs), len(psks))
 	}
@@ -278,17 +278,17 @@ func extractPSKSecret(cs cipherSuite, pskIDs []preSharedKeyID, psks [][]byte) ([
 	for i := range pskIDs {
 		pskExtracted := kdf.Extract(psks[i], zero)
 
-		pskLabel := pskLabel{
+		pskLabel := PSKLabel{
 			id:    pskIDs[i],
 			index: uint16(i),
 			count: uint16(len(pskIDs)),
 		}
-		rawPSKLabel, err := marshal(&pskLabel)
+		rawPSKLabel, err := Marshal(&pskLabel)
 		if err != nil {
 			return nil, err
 		}
 
-		pskInput, err := cs.expandWithLabel(pskExtracted, []byte("derived psk"), rawPSKLabel, uint16(kdf.ExtractSize()))
+		pskInput, err := cs.ExpandWithLabel(pskExtracted, []byte("derived psk"), rawPSKLabel, uint16(kdf.ExtractSize()))
 		if err != nil {
 			return nil, err
 		}
@@ -299,14 +299,14 @@ func extractPSKSecret(cs cipherSuite, pskIDs []preSharedKeyID, psks [][]byte) ([
 	return pskSecret, nil
 }
 
-type pskLabel struct {
-	id    preSharedKeyID
+type PSKLabel struct {
+	id    PreSharedKeyID
 	index uint16
 	count uint16
 }
 
-func (label *pskLabel) marshal(b *cryptobyte.Builder) {
-	label.id.marshal(b)
+func (label *PSKLabel) Marshal(b *cryptobyte.Builder) {
+	label.id.Marshal(b)
 	b.AddUint16(label.index)
 	b.AddUint16(label.count)
 }

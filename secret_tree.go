@@ -4,67 +4,67 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-type ratchetLabel []byte
+type RatchetLabel []byte
 
 var (
-	ratchetLabelHandshake   = ratchetLabel("handshake")
-	ratchetLabelApplication = ratchetLabel("application")
+	RatchetLabelHandshake   = RatchetLabel("handshake")
+	RatchetLabelApplication = RatchetLabel("application")
 )
 
-func ratchetLabelFromContentType(ct contentType) ratchetLabel {
+func RatchetLabelFromContentType(ct contentType) RatchetLabel {
 	switch ct {
 	case contentTypeApplication:
-		return ratchetLabelApplication
+		return RatchetLabelApplication
 	case contentTypeProposal, contentTypeCommit:
-		return ratchetLabelHandshake
+		return RatchetLabelHandshake
 	default:
 		panic("unreachable")
 	}
 }
 
-// secretTree holds tree node secrets used for the generation of encryption
+// SecretTree holds tree node secrets used for the generation of encryption
 // keys and nonces.
-type secretTree [][]byte
+type SecretTree [][]byte
 
-func deriveSecretTree(cs cipherSuite, n numLeaves, encryptionSecret []byte) (secretTree, error) {
-	tree := make(secretTree, int(n.width()))
-	tree.set(n.root(), encryptionSecret)
-	err := tree.deriveChildren(cs, n.root())
+func DeriveSecretTree(cs CipherSuite, n NumLeaves, encryptionSecret []byte) (SecretTree, error) {
+	tree := make(SecretTree, int(n.Width()))
+	tree.Set(n.Root(), encryptionSecret)
+	err := tree.DeriveChildren(cs, n.Root())
 	return tree, err
 }
 
-func (tree secretTree) deriveChildren(cs cipherSuite, x nodeIndex) error {
-	l, r, ok := x.children()
+func (tree SecretTree) DeriveChildren(cs CipherSuite, x NodeIndex) error {
+	l, r, ok := x.Children()
 	if !ok {
 		return nil
 	}
 
-	parentSecret := tree.get(x)
+	parentSecret := tree.Get(x)
 	_, kdf, _ := cs.hpke().Params()
 	nh := uint16(kdf.ExtractSize())
-	leftSecret, err := cs.expandWithLabel(parentSecret, []byte("tree"), []byte("left"), nh)
+	leftSecret, err := cs.ExpandWithLabel(parentSecret, []byte("tree"), []byte("left"), nh)
 	if err != nil {
 		return err
 	}
-	rightSecret, err := cs.expandWithLabel(parentSecret, []byte("tree"), []byte("right"), nh)
+	rightSecret, err := cs.ExpandWithLabel(parentSecret, []byte("tree"), []byte("right"), nh)
 	if err != nil {
 		return err
 	}
 
-	tree.set(l, leftSecret)
-	tree.set(r, rightSecret)
+	tree.Set(l, leftSecret)
+	tree.Set(r, rightSecret)
 
-	if err := tree.deriveChildren(cs, l); err != nil {
+	if err := tree.DeriveChildren(cs, l); err != nil {
 		return err
 	}
-	if err := tree.deriveChildren(cs, r); err != nil {
+	if err := tree.DeriveChildren(cs, r); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (tree secretTree) get(ni nodeIndex) []byte {
+func (tree SecretTree) Get(ni NodeIndex) []byte {
 	secret := tree[int(ni)]
 	if secret == nil {
 		panic("empty node in secret tree")
@@ -72,46 +72,46 @@ func (tree secretTree) get(ni nodeIndex) []byte {
 	return secret
 }
 
-func (tree secretTree) set(ni nodeIndex, secret []byte) {
+func (tree SecretTree) Set(ni NodeIndex, secret []byte) {
 	tree[int(ni)] = secret
 }
 
-// deriveRatchetRoot derives the root of a ratchet for a tree node.
-func (tree secretTree) deriveRatchetRoot(cs cipherSuite, ni nodeIndex, label ratchetLabel) (ratchetSecret, error) {
+// DeriveRatchetRoot derives the root of a ratchet for a tree node.
+func (tree SecretTree) DeriveRatchetRoot(cs CipherSuite, ni NodeIndex, label RatchetLabel) (RatchetSecret, error) {
 	_, kdf, _ := cs.hpke().Params()
 	nh := uint16(kdf.ExtractSize())
-	root, err := cs.expandWithLabel(tree.get(ni), []byte(label), nil, nh)
-	return ratchetSecret{root, 0}, err
+	root, err := cs.ExpandWithLabel(tree.Get(ni), []byte(label), nil, nh)
+	return RatchetSecret{root, 0}, err
 }
 
-type ratchetSecret struct {
+type RatchetSecret struct {
 	secret     []byte
 	generation uint32
 }
 
-func (secret ratchetSecret) deriveNonce(cs cipherSuite) ([]byte, error) {
+func (secret RatchetSecret) DeriveNonce(cs CipherSuite) ([]byte, error) {
 	_, _, aead := cs.hpke().Params()
 	nn := uint16(aead.NonceSize())
-	return deriveTreeSecret(cs, secret.secret, []byte("nonce"), secret.generation, nn)
+	return DeriveTreeSecret(cs, secret.secret, []byte("nonce"), secret.generation, nn)
 }
 
-func (secret ratchetSecret) deriveKey(cs cipherSuite) ([]byte, error) {
+func (secret RatchetSecret) DeriveKey(cs CipherSuite) ([]byte, error) {
 	_, _, aead := cs.hpke().Params()
 	nk := uint16(aead.KeySize())
-	return deriveTreeSecret(cs, secret.secret, []byte("key"), secret.generation, nk)
+	return DeriveTreeSecret(cs, secret.secret, []byte("key"), secret.generation, nk)
 }
 
-func (secret ratchetSecret) deriveNext(cs cipherSuite) (ratchetSecret, error) {
+func (secret RatchetSecret) DeriveNext(cs CipherSuite) (RatchetSecret, error) {
 	_, kdf, _ := cs.hpke().Params()
 	nh := uint16(kdf.ExtractSize())
-	next, err := deriveTreeSecret(cs, secret.secret, []byte("secret"), secret.generation, nh)
-	return ratchetSecret{next, secret.generation + 1}, err
+	next, err := DeriveTreeSecret(cs, secret.secret, []byte("secret"), secret.generation, nh)
+	return RatchetSecret{next, secret.generation + 1}, err
 }
 
-func deriveTreeSecret(cs cipherSuite, secret, label []byte, generation uint32, length uint16) ([]byte, error) {
+func DeriveTreeSecret(cs CipherSuite, secret, label []byte, generation uint32, length uint16) ([]byte, error) {
 	var b cryptobyte.Builder
 	b.AddUint32(generation)
 	context := b.BytesOrPanic()
 
-	return cs.expandWithLabel(secret, label, context, length)
+	return cs.ExpandWithLabel(secret, label, context, length)
 }

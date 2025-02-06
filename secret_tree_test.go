@@ -7,7 +7,7 @@ import (
 )
 
 type secretTreeTest struct {
-	CipherSuite cipherSuite `json:"cipher_suite"`
+	CipherSuite CipherSuite `json:"cipher_suite"`
 
 	SenderData struct {
 		SenderDataSecret testBytes `json:"sender_data_secret"`
@@ -32,21 +32,21 @@ func testSecretTree(t *testing.T, tc *secretTreeTest) {
 	senderDataSecret := []byte(tc.SenderData.SenderDataSecret)
 	ciphertext := []byte(tc.SenderData.Ciphertext)
 
-	key, err := expandSenderDataKey(tc.CipherSuite, senderDataSecret, ciphertext)
+	key, err := ExpandSenderDataKey(tc.CipherSuite, senderDataSecret, ciphertext)
 	if err != nil {
 		t.Errorf("expandSenderDataKey() = %v", err)
 	} else if !bytes.Equal(key, []byte(tc.SenderData.Key)) {
 		t.Errorf("expandSenderDataKey() = %v, want %v", key, tc.SenderData.Key)
 	}
 
-	nonce, err := expandSenderDataNonce(tc.CipherSuite, senderDataSecret, ciphertext)
+	nonce, err := ExpandSenderDataNonce(tc.CipherSuite, senderDataSecret, ciphertext)
 	if err != nil {
 		t.Errorf("expandSenderDataNonce() = %v", err)
 	} else if !bytes.Equal(nonce, []byte(tc.SenderData.Nonce)) {
 		t.Errorf("expandSenderDataNonce() = %v, want %v", nonce, tc.SenderData.Nonce)
 	}
 
-	tree, err := deriveSecretTree(tc.CipherSuite, numLeaves(len(tc.Leaves)), []byte(tc.EncryptionSecret))
+	tree, err := DeriveSecretTree(tc.CipherSuite, NumLeaves(len(tc.Leaves)), []byte(tc.EncryptionSecret))
 	if err != nil {
 		t.Fatalf("generateSecretTree() = %v", err)
 	}
@@ -54,16 +54,16 @@ func testSecretTree(t *testing.T, tc *secretTreeTest) {
 	for i, gens := range tc.Leaves {
 		li := leafIndex(i)
 		t.Run(fmt.Sprintf("leaf-%v/handshake", li), func(t *testing.T) {
-			testRatchetSecret(t, tc.CipherSuite, tree, li, ratchetLabelHandshake, gens)
+			testRatchetSecret(t, tc.CipherSuite, tree, li, RatchetLabelHandshake, gens)
 		})
 		t.Run(fmt.Sprintf("leaf-%v/application", li), func(t *testing.T) {
-			testRatchetSecret(t, tc.CipherSuite, tree, li, ratchetLabelApplication, gens)
+			testRatchetSecret(t, tc.CipherSuite, tree, li, RatchetLabelApplication, gens)
 		})
 	}
 }
 
-func testRatchetSecret(t *testing.T, cs cipherSuite, tree secretTree, li leafIndex, label ratchetLabel, gens []secretTreeTestGen) {
-	secret, err := tree.deriveRatchetRoot(cs, li.nodeIndex(), label)
+func testRatchetSecret(t *testing.T, cs CipherSuite, tree SecretTree, li leafIndex, label RatchetLabel, gens []secretTreeTestGen) {
+	secret, err := tree.DeriveRatchetRoot(cs, li.NodeIndex(), label)
 	if err != nil {
 		t.Fatalf("deriveRatchetRoot() = %v", err)
 	}
@@ -74,7 +74,7 @@ func testRatchetSecret(t *testing.T, cs cipherSuite, tree secretTree, li leafInd
 		}
 
 		for secret.generation != gen.Generation {
-			secret, err = secret.deriveNext(cs)
+			secret, err = secret.DeriveNext(cs)
 			if err != nil {
 				t.Fatalf("deriveNext() = %v", err)
 			}
@@ -82,22 +82,22 @@ func testRatchetSecret(t *testing.T, cs cipherSuite, tree secretTree, li leafInd
 
 		var wantKey, wantNonce testBytes
 		switch string(label) {
-		case string(ratchetLabelHandshake):
+		case string(RatchetLabelHandshake):
 			wantKey, wantNonce = gen.HandshakeKey, gen.HandshakeNonce
-		case string(ratchetLabelApplication):
+		case string(RatchetLabelApplication):
 			wantKey, wantNonce = gen.ApplicationKey, gen.ApplicationNonce
 		default:
 			panic("unreachable")
 		}
 
-		key, err := secret.deriveKey(cs)
+		key, err := secret.DeriveKey(cs)
 		if err != nil {
 			t.Fatalf("deriveKey() = %v", err)
 		} else if !bytes.Equal(key, []byte(wantKey)) {
 			t.Errorf("deriveKey() = %v, want %v", key, wantKey)
 		}
 
-		nonce, err := secret.deriveNonce(cs)
+		nonce, err := secret.DeriveNonce(cs)
 		if err != nil {
 			t.Fatalf("deriveNonce() = %v", err)
 		} else if !bytes.Equal(nonce, []byte(wantNonce)) {

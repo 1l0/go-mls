@@ -17,39 +17,39 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
-type cipherSuite uint16
+type CipherSuite uint16
 
 const (
-	cipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        cipherSuite = 0x0001
-	cipherSuiteMLS_128_DHKEMP256_AES128GCM_SHA256_P256             cipherSuite = 0x0002
-	cipherSuiteMLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 cipherSuite = 0x0003
-	cipherSuiteMLS_256_DHKEMX448_AES256GCM_SHA512_Ed448            cipherSuite = 0x0004
-	cipherSuiteMLS_256_DHKEMP521_AES256GCM_SHA512_P521             cipherSuite = 0x0005
-	cipherSuiteMLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     cipherSuite = 0x0006
-	cipherSuiteMLS_256_DHKEMP384_AES256GCM_SHA384_P384             cipherSuite = 0x0007
+	CipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519        CipherSuite = 0x0001
+	CipherSuiteMLS_128_DHKEMP256_AES128GCM_SHA256_P256             CipherSuite = 0x0002
+	CipherSuiteMLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519 CipherSuite = 0x0003
+	CipherSuiteMLS_256_DHKEMX448_AES256GCM_SHA512_Ed448            CipherSuite = 0x0004
+	CipherSuiteMLS_256_DHKEMP521_AES256GCM_SHA512_P521             CipherSuite = 0x0005
+	CipherSuiteMLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448     CipherSuite = 0x0006
+	CipherSuiteMLS_256_DHKEMP384_AES256GCM_SHA384_P384             CipherSuite = 0x0007
 )
 
-func (cs cipherSuite) String() string {
+func (cs CipherSuite) String() string {
 	switch cs {
-	case cipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519:
+	case CipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519:
 		return "MLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519"
-	case cipherSuiteMLS_128_DHKEMP256_AES128GCM_SHA256_P256:
+	case CipherSuiteMLS_128_DHKEMP256_AES128GCM_SHA256_P256:
 		return "MLS_128_DHKEMP256_AES128GCM_SHA256_P256"
-	case cipherSuiteMLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519:
+	case CipherSuiteMLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519:
 		return "MLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519"
-	case cipherSuiteMLS_256_DHKEMX448_AES256GCM_SHA512_Ed448:
+	case CipherSuiteMLS_256_DHKEMX448_AES256GCM_SHA512_Ed448:
 		return "MLS_256_DHKEMX448_AES256GCM_SHA512_Ed448"
-	case cipherSuiteMLS_256_DHKEMP521_AES256GCM_SHA512_P521:
+	case CipherSuiteMLS_256_DHKEMP521_AES256GCM_SHA512_P521:
 		return "MLS_256_DHKEMP521_AES256GCM_SHA512_P521"
-	case cipherSuiteMLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448:
+	case CipherSuiteMLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448:
 		return "MLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448"
-	case cipherSuiteMLS_256_DHKEMP384_AES256GCM_SHA384_P384:
+	case CipherSuiteMLS_256_DHKEMP384_AES256GCM_SHA384_P384:
 		return "MLS_256_DHKEMP384_AES256GCM_SHA384_P384"
 	}
 	return fmt.Sprintf("<%d>", cs)
 }
 
-func (cs cipherSuite) hash() crypto.Hash {
+func (cs CipherSuite) hash() crypto.Hash {
 	desc, ok := cipherSuiteDescriptions[cs]
 	if !ok {
 		panic(fmt.Errorf("mls: invalid cipher suite %d", cs))
@@ -57,7 +57,7 @@ func (cs cipherSuite) hash() crypto.Hash {
 	return desc.hash
 }
 
-func (cs cipherSuite) hpke() hpke.Suite {
+func (cs CipherSuite) hpke() hpke.Suite {
 	desc, ok := cipherSuiteDescriptions[cs]
 	if !ok {
 		panic(fmt.Errorf("mls: invalid cipher suite %d", cs))
@@ -65,7 +65,7 @@ func (cs cipherSuite) hpke() hpke.Suite {
 	return desc.hpke
 }
 
-func (cs cipherSuite) signatureScheme() signatureScheme {
+func (cs CipherSuite) signatureScheme() SignatureScheme {
 	desc, ok := cipherSuiteDescriptions[cs]
 	if !ok {
 		panic(fmt.Errorf("mls: invalid cipher suite %d", cs))
@@ -73,65 +73,65 @@ func (cs cipherSuite) signatureScheme() signatureScheme {
 	return desc.sig
 }
 
-type cipherSuiteDescription struct {
+type CipherSuiteDescription struct {
 	hash crypto.Hash
 	hpke hpke.Suite
-	sig  signatureScheme
+	sig  SignatureScheme
 }
 
-var cipherSuiteDescriptions = map[cipherSuite]cipherSuiteDescription{
-	cipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519: {
+var cipherSuiteDescriptions = map[CipherSuite]CipherSuiteDescription{
+	CipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519: {
 		hash: crypto.SHA256,
 		hpke: hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES128GCM),
-		sig:  ed25519SignatureScheme{},
+		sig:  ED25519SignatureScheme{},
 	},
-	cipherSuiteMLS_128_DHKEMP256_AES128GCM_SHA256_P256: {
+	CipherSuiteMLS_128_DHKEMP256_AES128GCM_SHA256_P256: {
 		hash: crypto.SHA256,
 		hpke: hpke.NewSuite(hpke.KEM_P256_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES128GCM),
-		sig:  ecdsaSignatureScheme{elliptic.P256(), crypto.SHA256},
+		sig:  ECDSASignatureScheme{elliptic.P256(), crypto.SHA256},
 	},
-	cipherSuiteMLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519: {
+	CipherSuiteMLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519: {
 		hash: crypto.SHA256,
 		hpke: hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_ChaCha20Poly1305),
-		sig:  ed25519SignatureScheme{},
+		sig:  ED25519SignatureScheme{},
 	},
-	cipherSuiteMLS_256_DHKEMX448_AES256GCM_SHA512_Ed448: {
+	CipherSuiteMLS_256_DHKEMX448_AES256GCM_SHA512_Ed448: {
 		hash: crypto.SHA512,
 		hpke: hpke.NewSuite(hpke.KEM_X448_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_AES256GCM),
-		sig:  ed448SignatureScheme{},
+		sig:  ED448SignatureScheme{},
 	},
-	cipherSuiteMLS_256_DHKEMP521_AES256GCM_SHA512_P521: {
+	CipherSuiteMLS_256_DHKEMP521_AES256GCM_SHA512_P521: {
 		hash: crypto.SHA512,
 		hpke: hpke.NewSuite(hpke.KEM_P521_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_AES256GCM),
-		sig:  ecdsaSignatureScheme{elliptic.P521(), crypto.SHA512},
+		sig:  ECDSASignatureScheme{elliptic.P521(), crypto.SHA512},
 	},
-	cipherSuiteMLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448: {
+	CipherSuiteMLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448: {
 		hash: crypto.SHA512,
 		hpke: hpke.NewSuite(hpke.KEM_X448_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_ChaCha20Poly1305),
-		sig:  ed448SignatureScheme{},
+		sig:  ED448SignatureScheme{},
 	},
-	cipherSuiteMLS_256_DHKEMP384_AES256GCM_SHA384_P384: {
+	CipherSuiteMLS_256_DHKEMP384_AES256GCM_SHA384_P384: {
 		hash: crypto.SHA384,
 		hpke: hpke.NewSuite(hpke.KEM_P384_HKDF_SHA384, hpke.KDF_HKDF_SHA384, hpke.AEAD_AES256GCM),
-		sig:  ecdsaSignatureScheme{elliptic.P384(), crypto.SHA384},
+		sig:  ECDSASignatureScheme{elliptic.P384(), crypto.SHA384},
 	},
 }
 
-func (cs cipherSuite) signMAC(key, message []byte) []byte {
+func (cs CipherSuite) signMAC(key, message []byte) []byte {
 	// All cipher suites use HMAC
 	mac := hmac.New(cs.hash().New, key)
 	mac.Write(message)
 	return mac.Sum(nil)
 }
 
-func (cs cipherSuite) verifyMAC(key, message, tag []byte) bool {
+func (cs CipherSuite) verifyMAC(key, message, tag []byte) bool {
 	return hmac.Equal(tag, cs.signMAC(key, message))
 }
 
-func (cs cipherSuite) refHash(label, value []byte) ([]byte, error) {
+func (cs CipherSuite) refHash(label, value []byte) ([]byte, error) {
 	var b cryptobyte.Builder
-	writeOpaqueVec(&b, label)
-	writeOpaqueVec(&b, value)
+	WriteOpaqueVec(&b, label)
+	WriteOpaqueVec(&b, value)
 	in, err := b.Bytes()
 	if err != nil {
 		return nil, err
@@ -142,13 +142,13 @@ func (cs cipherSuite) refHash(label, value []byte) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-func (cs cipherSuite) expandWithLabel(secret, label, context []byte, length uint16) ([]byte, error) {
+func (cs CipherSuite) ExpandWithLabel(secret, label, context []byte, length uint16) ([]byte, error) {
 	label = append([]byte("MLS 1.0 "), label...)
 
 	var b cryptobyte.Builder
 	b.AddUint16(length)
-	writeOpaqueVec(&b, label)
-	writeOpaqueVec(&b, context)
+	WriteOpaqueVec(&b, label)
+	WriteOpaqueVec(&b, context)
 	kdfLabel, err := b.Bytes()
 	if err != nil {
 		return nil, err
@@ -158,12 +158,12 @@ func (cs cipherSuite) expandWithLabel(secret, label, context []byte, length uint
 	return kdf.Expand(secret, kdfLabel, uint(length)), nil
 }
 
-func (cs cipherSuite) deriveSecret(secret, label []byte) ([]byte, error) {
+func (cs CipherSuite) DeriveSecret(secret, label []byte) ([]byte, error) {
 	_, kdf, _ := cs.hpke().Params()
-	return cs.expandWithLabel(secret, label, nil, uint16(kdf.ExtractSize()))
+	return cs.ExpandWithLabel(secret, label, nil, uint16(kdf.ExtractSize()))
 }
 
-func (cs cipherSuite) signWithLabel(signKey, label, content []byte) ([]byte, error) {
+func (cs CipherSuite) SignWithLabel(signKey, label, content []byte) ([]byte, error) {
 	signContent, err := marshalSignContent(label, content)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (cs cipherSuite) signWithLabel(signKey, label, content []byte) ([]byte, err
 	return cs.signatureScheme().Sign(signKey, signContent)
 }
 
-func (cs cipherSuite) verifyWithLabel(verifKey, label, content, signValue []byte) bool {
+func (cs CipherSuite) VerifyWithLabel(verifKey, label, content, signValue []byte) bool {
 	signContent, err := marshalSignContent(label, content)
 	if err != nil {
 		return false
@@ -181,7 +181,7 @@ func (cs cipherSuite) verifyWithLabel(verifKey, label, content, signValue []byte
 	return cs.signatureScheme().Verify(verifKey, signContent, signValue)
 }
 
-func (cs cipherSuite) encryptWithLabel(publicKey, label, context, plaintext []byte) (kemOutput, ciphertext []byte, err error) {
+func (cs CipherSuite) EncryptWithLabel(publicKey, label, context, plaintext []byte) (kemOutput, ciphertext []byte, err error) {
 	encryptContext, err := marshalEncryptContext(label, context)
 	if err != nil {
 		return nil, nil, err
@@ -208,7 +208,7 @@ func (cs cipherSuite) encryptWithLabel(publicKey, label, context, plaintext []by
 	return kemOutput, ciphertext, err
 }
 
-func (cs cipherSuite) decryptWithLabel(privateKey, label, context, kemOutput, ciphertext []byte) ([]byte, error) {
+func (cs CipherSuite) DecryptWithLabel(privateKey, label, context, kemOutput, ciphertext []byte) ([]byte, error) {
 	encryptContext, err := marshalEncryptContext(label, context)
 	if err != nil {
 		return nil, err
@@ -238,8 +238,8 @@ func marshalSignContent(label, content []byte) ([]byte, error) {
 	label = append([]byte("MLS 1.0 "), label...)
 
 	var b cryptobyte.Builder
-	writeOpaqueVec(&b, label)
-	writeOpaqueVec(&b, content)
+	WriteOpaqueVec(&b, label)
+	WriteOpaqueVec(&b, content)
 	return b.Bytes()
 }
 
@@ -247,19 +247,19 @@ func marshalEncryptContext(label, context []byte) ([]byte, error) {
 	label = append([]byte("MLS 1.0 "), label...)
 
 	var b cryptobyte.Builder
-	writeOpaqueVec(&b, label)
-	writeOpaqueVec(&b, context)
+	WriteOpaqueVec(&b, label)
+	WriteOpaqueVec(&b, context)
 	return b.Bytes()
 }
 
-type signatureScheme interface {
+type SignatureScheme interface {
 	Sign(signKey, message []byte) ([]byte, error)
 	Verify(publicKey, message, sig []byte) bool
 }
 
-type ed25519SignatureScheme struct{}
+type ED25519SignatureScheme struct{}
 
-func (ed25519SignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
+func (ED25519SignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
 	if len(signKey) != ed25519.SeedSize {
 		return nil, fmt.Errorf("mls: invalid Ed25519 private key size")
 	}
@@ -267,25 +267,25 @@ func (ed25519SignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
 	return ed25519.Sign(priv, message), nil
 }
 
-func (ed25519SignatureScheme) Verify(publicKey, message, sig []byte) bool {
+func (ED25519SignatureScheme) Verify(publicKey, message, sig []byte) bool {
 	if len(publicKey) != ed25519.PublicKeySize {
 		return false
 	}
 	return ed25519.Verify(ed25519.PublicKey(publicKey), message, sig)
 }
 
-type ecdsaSignatureScheme struct {
+type ECDSASignatureScheme struct {
 	curve elliptic.Curve
 	hash  crypto.Hash
 }
 
-func (scheme ecdsaSignatureScheme) hashSum(message []byte) []byte {
+func (scheme ECDSASignatureScheme) hashSum(message []byte) []byte {
 	h := scheme.hash.New()
 	h.Write(message)
 	return h.Sum(nil)
 }
 
-func (scheme ecdsaSignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
+func (scheme ECDSASignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
 	d := new(big.Int).SetBytes(signKey)
 	x, y := scheme.curve.ScalarBaseMult(signKey)
 	priv := &ecdsa.PrivateKey{
@@ -295,15 +295,15 @@ func (scheme ecdsaSignatureScheme) Sign(signKey, message []byte) ([]byte, error)
 	return ecdsa.SignASN1(rand.Reader, priv, scheme.hashSum(message))
 }
 
-func (scheme ecdsaSignatureScheme) Verify(publicKey, message, sig []byte) bool {
+func (scheme ECDSASignatureScheme) Verify(publicKey, message, sig []byte) bool {
 	x, y := elliptic.Unmarshal(scheme.curve, publicKey)
 	pub := &ecdsa.PublicKey{Curve: scheme.curve, X: x, Y: y}
 	return ecdsa.VerifyASN1(pub, scheme.hashSum(message), sig)
 }
 
-type ed448SignatureScheme struct{}
+type ED448SignatureScheme struct{}
 
-func (ed448SignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
+func (ED448SignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
 	if len(signKey) != ed448.SeedSize {
 		return nil, fmt.Errorf("mls: invalid Ed448 private key size")
 	}
@@ -311,7 +311,7 @@ func (ed448SignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
 	return ed448.Sign(priv, message, ""), nil
 }
 
-func (ed448SignatureScheme) Verify(publicKey, message, sig []byte) bool {
+func (ED448SignatureScheme) Verify(publicKey, message, sig []byte) bool {
 	if len(publicKey) != ed448.PublicKeySize {
 		return false
 	}

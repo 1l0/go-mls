@@ -1,3 +1,5 @@
+[![Go Reference](https://pkg.go.dev/badge/github.com/emersion/go-mls.svg)](https://pkg.go.dev/github.com/emersion/go-mls)
+
 # go-mls
 
 A Go library for [MLS].

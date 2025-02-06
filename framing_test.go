@@ -10,31 +10,31 @@ func testMessages(t *testing.T, tc map[string]testBytes) {
 	msgs := []struct {
 		name string
 		v    interface {
-			unmarshaler
-			marshaler
+			Unmarshaler
+			Marshaler
 		}
 	}{
-		{"mls_welcome", new(mlsMessage)},
-		{"mls_group_info", new(mlsMessage)},
-		{"mls_key_package", new(mlsMessage)},
+		{"mls_welcome", new(MLSMessage)},
+		{"mls_group_info", new(MLSMessage)},
+		{"mls_key_package", new(MLSMessage)},
 
-		{"ratchet_tree", new(ratchetTree)},
-		{"group_secrets", new(groupSecrets)},
+		{"ratchet_tree", new(RatchetTree)},
+		{"group_secrets", new(GroupSecrets)},
 
-		{"add_proposal", new(add)},
-		{"update_proposal", new(update)},
-		{"remove_proposal", new(remove)},
-		{"pre_shared_key_proposal", new(preSharedKey)},
-		{"re_init_proposal", new(reInit)},
-		{"external_init_proposal", new(externalInit)},
-		{"group_context_extensions_proposal", new(groupContextExtensions)},
+		{"add_proposal", new(Add)},
+		{"update_proposal", new(Update)},
+		{"remove_proposal", new(Remove)},
+		{"pre_shared_key_proposal", new(PreSharedKey)},
+		{"re_init_proposal", new(ReInit)},
+		{"external_init_proposal", new(ExternalInit)},
+		{"group_context_extensions_proposal", new(GroupContextExtensions)},
 
-		{"commit", new(commit)},
+		{"commit", new(Commit)},
 
-		{"public_message_application", new(mlsMessage)},
-		{"public_message_proposal", new(mlsMessage)},
-		{"public_message_commit", new(mlsMessage)},
-		{"private_message", new(mlsMessage)},
+		{"public_message_application", new(MLSMessage)},
+		{"public_message_proposal", new(MLSMessage)},
+		{"public_message_commit", new(MLSMessage)},
+		{"private_message", new(MLSMessage)},
 	}
 	for _, msg := range msgs {
 		t.Run(msg.name, func(t *testing.T) {
@@ -42,11 +42,11 @@ func testMessages(t *testing.T, tc map[string]testBytes) {
 			if !ok {
 				t.Fatal("reference blob not found")
 			}
-			if err := unmarshal(raw, msg.v); err != nil {
+			if err := Unmarshal(raw, msg.v); err != nil {
 				t.Fatalf("unmarshal() = %v", err)
 			}
 
-			out, err := marshal(msg.v)
+			out, err := Marshal(msg.v)
 			if err != nil {
 				t.Errorf("marshal() = %v", err)
 			} else if !bytes.Equal(out, raw) {

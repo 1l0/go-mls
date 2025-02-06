@@ -51,7 +51,7 @@ func TestDeserialization(t *testing.T) {
 		t.Run(fmt.Sprintf("[%v]", i), func(t *testing.T) {
 			var length uint32
 			s := tc.VLBytesHeader.ByteString()
-			if !readVarint(s, &length) {
+			if !ReadVarint(s, &length) {
 				t.Fatalf("readVarint() = false")
 			} else if !s.Empty() {
 				t.Errorf("byte string should be empty after readVarint()")
