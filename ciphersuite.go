@@ -65,7 +65,7 @@ func (cs CipherSuite) hpke() hpke.Suite {
 	return desc.hpke
 }
 
-func (cs CipherSuite) signatureScheme() SignatureScheme {
+func (cs CipherSuite) SignatureScheme() SignatureScheme {
 	desc, ok := cipherSuiteDescriptions[cs]
 	if !ok {
 		panic(fmt.Errorf("mls: invalid cipher suite %d", cs))
@@ -73,13 +73,13 @@ func (cs CipherSuite) signatureScheme() SignatureScheme {
 	return desc.sig
 }
 
-type CipherSuiteDescription struct {
+type cipherSuiteDescription struct {
 	hash crypto.Hash
 	hpke hpke.Suite
 	sig  SignatureScheme
 }
 
-var cipherSuiteDescriptions = map[CipherSuite]CipherSuiteDescription{
+var cipherSuiteDescriptions = map[CipherSuite]cipherSuiteDescription{
 	CipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519: {
 		hash: crypto.SHA256,
 		hpke: hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES128GCM),
@@ -169,7 +169,7 @@ func (cs CipherSuite) SignWithLabel(signKey, label, content []byte) ([]byte, err
 		return nil, err
 	}
 
-	return cs.signatureScheme().Sign(signKey, signContent)
+	return cs.SignatureScheme().Sign(signKey, signContent)
 }
 
 func (cs CipherSuite) VerifyWithLabel(verifKey, label, content, signValue []byte) bool {
@@ -178,7 +178,7 @@ func (cs CipherSuite) VerifyWithLabel(verifKey, label, content, signValue []byte
 		return false
 	}
 
-	return cs.signatureScheme().Verify(verifKey, signContent, signValue)
+	return cs.SignatureScheme().Verify(verifKey, signContent, signValue)
 }
 
 func (cs CipherSuite) EncryptWithLabel(publicKey, label, context, plaintext []byte) (kemOutput, ciphertext []byte, err error) {
@@ -255,6 +255,7 @@ func marshalEncryptContext(label, context []byte) ([]byte, error) {
 type SignatureScheme interface {
 	Sign(signKey, message []byte) ([]byte, error)
 	Verify(publicKey, message, sig []byte) bool
+	GenerateKeys() (privateKey, publicKey []byte, err error)
 }
 
 type ED25519SignatureScheme struct{}
@@ -272,6 +273,11 @@ func (ED25519SignatureScheme) Verify(publicKey, message, sig []byte) bool {
 		return false
 	}
 	return ed25519.Verify(ed25519.PublicKey(publicKey), message, sig)
+}
+
+func (scheme ED25519SignatureScheme) GenerateKeys() (privateKey, publicKey []byte, err error) {
+	publicKey, privateKey, err = ed25519.GenerateKey(rand.Reader)
+	return
 }
 
 type ECDSASignatureScheme struct {
@@ -301,6 +307,18 @@ func (scheme ECDSASignatureScheme) Verify(publicKey, message, sig []byte) bool {
 	return ecdsa.VerifyASN1(pub, scheme.hashSum(message), sig)
 }
 
+func (scheme ECDSASignatureScheme) GenerateKeys() (privateKey, publicKey []byte, err error) {
+	curv := elliptic.P256()
+	priv, err := ecdsa.GenerateKey(curv, rand.Reader)
+	if err != nil {
+		return
+	}
+	pub := priv.PublicKey
+	privateKey = elliptic.Marshal(priv.Curve, priv.X, priv.Y)
+	publicKey = elliptic.Marshal(pub.Curve, pub.X, pub.Y)
+	return
+}
+
 type ED448SignatureScheme struct{}
 
 func (ED448SignatureScheme) Sign(signKey, message []byte) ([]byte, error) {
@@ -316,4 +334,9 @@ func (ED448SignatureScheme) Verify(publicKey, message, sig []byte) bool {
 		return false
 	}
 	return ed448.Verify(ed448.PublicKey(publicKey), message, sig, "")
+}
+
+func (scheme ED448SignatureScheme) GenerateKeys() (privateKey, publicKey []byte, err error) {
+	publicKey, privateKey, err = ed448.GenerateKey(rand.Reader)
+	return
 }
