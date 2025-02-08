@@ -50,7 +50,7 @@ func testTreeValidation(t *testing.T, tc *treeValidationTest) {
 
 	groupID := GroupID(tc.GroupID)
 	for i, node := range tree {
-		if node == nil || node.nodeType != NodeTypeLeaf {
+		if node == nil || node.NodeType != NodeTypeLeaf {
 			continue
 		}
 		li, ok := NodeIndex(i).LeafIndex()
@@ -58,7 +58,7 @@ func testTreeValidation(t *testing.T, tc *treeValidationTest) {
 			t.Errorf("leafIndex(%v) = false", i)
 			continue
 		}
-		if !node.leafNode.verifySignature(tc.CipherSuite, groupID, li) {
+		if !node.LeafNode.verifySignature(tc.CipherSuite, groupID, li) {
 			t.Errorf("verify(%v) = false", li)
 		}
 	}
@@ -85,7 +85,7 @@ type treeKEMTest struct {
 	RatchetTree testBytes `json:"ratchet_tree"`
 
 	LeavesPrivate []struct {
-		Index          leafIndex `json:"index"`
+		Index          LeafIndex `json:"index"`
 		EncryptionPriv testBytes `json:"encryption_priv"`
 		SignaturePriv  testBytes `json:"signature_priv"`
 		PathSecrets    []struct {
@@ -95,7 +95,7 @@ type treeKEMTest struct {
 	} `json:"leaves_private"`
 
 	UpdatePaths []struct {
-		Sender        leafIndex   `json:"sender"`
+		Sender        LeafIndex   `json:"sender"`
 		UpdatePath    testBytes   `json:"update_path"`
 		PathSecrets   []testBytes `json:"path_secrets"`
 		CommitSecret  testBytes   `json:"commit_secret"`
@@ -123,7 +123,7 @@ func testTreeKEM(t *testing.T, tc *treeKEMTest) {
 
 		// TODO: drop the seed size check, see:
 		// https://github.com/cloudflare/circl/issues/486
-		kem, kdf, _ := tc.CipherSuite.hpke().Params()
+		kem, kdf, _ := tc.CipherSuite.HPKE().Params()
 		if kem.Scheme().SeedSize() != kdf.ExtractSize() {
 			continue
 		}
@@ -207,7 +207,7 @@ type treeOperationsTest struct {
 
 	TreeBefore     testBytes `json:"tree_before"`
 	Proposal       testBytes `json:"proposal"`
-	ProposalSender leafIndex `json:"proposal_sender"`
+	ProposalSender LeafIndex `json:"proposal_sender"`
 
 	TreeHashBefore testBytes `json:"tree_hash_before"`
 	TreeAfter      testBytes `json:"tree_after"`
@@ -232,36 +232,36 @@ func testTreeOperations(t *testing.T, tc *treeOperationsTest) {
 		t.Fatalf("unmarshal(proposal) = %v", err)
 	}
 
-	switch prop.proposalType {
+	switch prop.ProposalType {
 	case ProposalTypeAdd:
 		ctx := GroupContext{
-			Version:     prop.add.keyPackage.Version,
-			CipherSuite: prop.add.keyPackage.CipherSuite,
+			Version:     prop.Add.KeyPackage.Version,
+			CipherSuite: prop.Add.KeyPackage.CipherSuite,
 		}
-		if err := prop.add.keyPackage.Verify(&ctx); err != nil {
+		if err := prop.Add.KeyPackage.Verify(&ctx); err != nil {
 			t.Errorf("keyPackage.verify() = %v", err)
 		}
-		tree.Add(&prop.add.keyPackage.LeafNode)
+		tree.Add(&prop.Add.KeyPackage.LeafNode)
 	case ProposalTypeUpdate:
 		signatureKeys, encryptionKeys := tree.Keys()
-		err := prop.update.leafNode.Verify(&LeafNodeVerifyOptions{
-			cipherSuite:    tc.CipherSuite,
-			groupID:        nil,
-			leafIndex:      tc.ProposalSender,
-			supportedCreds: tree.SupportedCreds(),
-			signatureKeys:  signatureKeys,
-			encryptionKeys: encryptionKeys,
-			now:            func() time.Time { return time.Time{} },
+		err := prop.Update.LeafNode.Verify(&LeafNodeVerifyOptions{
+			CipherSuite:    tc.CipherSuite,
+			GroupID:        nil,
+			LeafIndex:      tc.ProposalSender,
+			SupportedCreds: tree.SupportedCreds(),
+			SignatureKeys:  signatureKeys,
+			EncryptionKeys: encryptionKeys,
+			Now:            func() time.Time { return time.Time{} },
 		})
 		if err != nil {
 			t.Errorf("leafNode.verify() = %v", err)
 		}
-		tree.Update(tc.ProposalSender, &prop.update.leafNode)
+		tree.Update(tc.ProposalSender, &prop.Update.LeafNode)
 	case ProposalTypeRemove:
-		if tree.GetLeaf(prop.remove.removed) == nil {
-			t.Errorf("leaf node %v is blank", prop.remove.removed)
+		if tree.GetLeaf(prop.Remove.Removed) == nil {
+			t.Errorf("leaf node %v is blank", prop.Remove.Removed)
 		}
-		tree.Remove(prop.remove.removed)
+		tree.Remove(prop.Remove.Removed)
 	default:
 		panic("unreachable")
 	}

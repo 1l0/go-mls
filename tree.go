@@ -10,36 +10,36 @@ import (
 )
 
 type ParentNode struct {
-	encryptionKey  HPKEPublicKey
-	parentHash     []byte
-	unmergedLeaves []leafIndex
+	EncryptionKey  HPKEPublicKey
+	ParentHash     []byte
+	UnmergedLeaves []LeafIndex
 }
 
 func (node *ParentNode) Unmarshal(s *cryptobyte.String) error {
 	*node = ParentNode{}
-	if !ReadOpaqueVec(s, (*[]byte)(&node.encryptionKey)) || !ReadOpaqueVec(s, &node.parentHash) {
+	if !ReadOpaqueVec(s, (*[]byte)(&node.EncryptionKey)) || !ReadOpaqueVec(s, &node.ParentHash) {
 		return io.ErrUnexpectedEOF
 	}
 	return ReadVector(s, func(s *cryptobyte.String) error {
-		var i leafIndex
+		var i LeafIndex
 		if !s.ReadUint32((*uint32)(&i)) {
 			return io.ErrUnexpectedEOF
 		}
-		node.unmergedLeaves = append(node.unmergedLeaves, i)
+		node.UnmergedLeaves = append(node.UnmergedLeaves, i)
 		return nil
 	})
 }
 
 func (node *ParentNode) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(node.encryptionKey))
-	WriteOpaqueVec(b, node.parentHash)
-	WriteVector(b, len(node.unmergedLeaves), func(b *cryptobyte.Builder, i int) {
-		b.AddUint32(uint32(node.unmergedLeaves[i]))
+	WriteOpaqueVec(b, []byte(node.EncryptionKey))
+	WriteOpaqueVec(b, node.ParentHash)
+	WriteVector(b, len(node.UnmergedLeaves), func(b *cryptobyte.Builder, i int) {
+		b.AddUint32(uint32(node.UnmergedLeaves[i]))
 	})
 }
 
 func (node *ParentNode) ComputeParentHash(cs CipherSuite, originalSiblingTreeHash []byte) ([]byte, error) {
-	rawInput, err := MarshalParentHashInput(node.encryptionKey, node.parentHash, originalSiblingTreeHash)
+	rawInput, err := MarshalParentHashInput(node.EncryptionKey, node.ParentHash, originalSiblingTreeHash)
 	if err != nil {
 		return nil, err
 	}
@@ -181,28 +181,28 @@ func (caps *Capabilities) Marshal(b *cryptobyte.Builder) {
 const MaxLeafNodeLifetime = 3 * 30 * 24 * time.Hour
 
 type Lifetime struct {
-	notBefore, notAfter uint64
+	NotBefore, NotAfter uint64
 }
 
 func (lt *Lifetime) Unmarshal(s *cryptobyte.String) error {
 	*lt = Lifetime{}
-	if !s.ReadUint64(&lt.notBefore) || !s.ReadUint64(&lt.notAfter) {
+	if !s.ReadUint64(&lt.NotBefore) || !s.ReadUint64(&lt.NotAfter) {
 		return io.ErrUnexpectedEOF
 	}
 	return nil
 }
 
 func (lt *Lifetime) Marshal(b *cryptobyte.Builder) {
-	b.AddUint64(lt.notBefore)
-	b.AddUint64(lt.notAfter)
+	b.AddUint64(lt.NotBefore)
+	b.AddUint64(lt.NotAfter)
 }
 
 func (lt *Lifetime) NotBeforeTime() time.Time {
-	return time.Unix(int64(lt.notBefore), 0)
+	return time.Unix(int64(lt.NotBefore), 0)
 }
 
 func (lt *Lifetime) NotAfterTime() time.Time {
-	return time.Unix(int64(lt.notAfter), 0)
+	return time.Unix(int64(lt.NotAfter), 0)
 }
 
 // Verify ensures that the lifetime is valid: it has an acceptable range and
@@ -264,43 +264,43 @@ func FindExtensionData(exts []Extension, t ExtensionType) []byte {
 }
 
 type LeafNode struct {
-	encryptionKey HPKEPublicKey
-	signatureKey  SignaturePublicKey
-	credential    Credential
-	capabilities  Capabilities
+	EncryptionKey HPKEPublicKey
+	SignatureKey  SignaturePublicKey
+	Credential    Credential
+	Capabilities  Capabilities
 
-	leafNodeSource LeafNodeSource
-	lifetime       *Lifetime // for leafNodeSourceKeyPackage
-	parentHash     []byte    // for leafNodeSourceCommit
+	LeafNodeSource LeafNodeSource
+	Lifetime       *Lifetime // for leafNodeSourceKeyPackage
+	ParentHash     []byte    // for leafNodeSourceCommit
 
-	extensions []Extension
-	signature  []byte
+	Extensions []Extension
+	Signature  []byte
 }
 
 func (node *LeafNode) Unmarshal(s *cryptobyte.String) error {
 	*node = LeafNode{}
 
-	if !ReadOpaqueVec(s, (*[]byte)(&node.encryptionKey)) || !ReadOpaqueVec(s, (*[]byte)(&node.signatureKey)) {
+	if !ReadOpaqueVec(s, (*[]byte)(&node.EncryptionKey)) || !ReadOpaqueVec(s, (*[]byte)(&node.SignatureKey)) {
 		return io.ErrUnexpectedEOF
 	}
 
-	if err := node.credential.Unmarshal(s); err != nil {
+	if err := node.Credential.Unmarshal(s); err != nil {
 		return err
 	}
-	if err := node.capabilities.Unmarshal(s); err != nil {
+	if err := node.Capabilities.Unmarshal(s); err != nil {
 		return err
 	}
-	if err := node.leafNodeSource.Unmarshal(s); err != nil {
+	if err := node.LeafNodeSource.Unmarshal(s); err != nil {
 		return err
 	}
 
 	var err error
-	switch node.leafNodeSource {
+	switch node.LeafNodeSource {
 	case LeafNodeSourceKeyPackage:
-		node.lifetime = new(Lifetime)
-		err = node.lifetime.Unmarshal(s)
+		node.Lifetime = new(Lifetime)
+		err = node.Lifetime.Unmarshal(s)
 	case LeafNodeSourceCommit:
-		if !ReadOpaqueVec(s, &node.parentHash) {
+		if !ReadOpaqueVec(s, &node.ParentHash) {
 			err = io.ErrUnexpectedEOF
 		}
 	}
@@ -312,9 +312,9 @@ func (node *LeafNode) Unmarshal(s *cryptobyte.String) error {
 	if err != nil {
 		return err
 	}
-	node.extensions = exts
+	node.Extensions = exts
 
-	if !ReadOpaqueVec(s, &node.signature) {
+	if !ReadOpaqueVec(s, &node.Signature) {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -322,23 +322,23 @@ func (node *LeafNode) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (node *LeafNode) marshalBase(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(node.encryptionKey))
-	WriteOpaqueVec(b, []byte(node.signatureKey))
-	node.credential.Marshal(b)
-	node.capabilities.Marshal(b)
-	node.leafNodeSource.Marshal(b)
-	switch node.leafNodeSource {
+	WriteOpaqueVec(b, []byte(node.EncryptionKey))
+	WriteOpaqueVec(b, []byte(node.SignatureKey))
+	node.Credential.Marshal(b)
+	node.Capabilities.Marshal(b)
+	node.LeafNodeSource.Marshal(b)
+	switch node.LeafNodeSource {
 	case LeafNodeSourceKeyPackage:
-		node.lifetime.Marshal(b)
+		node.Lifetime.Marshal(b)
 	case LeafNodeSourceCommit:
-		WriteOpaqueVec(b, node.parentHash)
+		WriteOpaqueVec(b, node.ParentHash)
 	}
-	MarshalExtensionVec(b, node.extensions)
+	MarshalExtensionVec(b, node.Extensions)
 }
 
 func (node *LeafNode) Marshal(b *cryptobyte.Builder) {
 	node.marshalBase(b)
-	WriteOpaqueVec(b, []byte(node.signature))
+	WriteOpaqueVec(b, []byte(node.Signature))
 }
 
 type LeafNodeTBS struct {
@@ -346,12 +346,12 @@ type LeafNodeTBS struct {
 
 	// for leafNodeSourceUpdate and leafNodeSourceCommit
 	groupID   GroupID
-	leafIndex leafIndex
+	leafIndex LeafIndex
 }
 
 func (node *LeafNodeTBS) Marshal(b *cryptobyte.Builder) {
 	node.LeafNode.marshalBase(b)
-	switch node.LeafNode.leafNodeSource {
+	switch node.LeafNode.LeafNodeSource {
 	case LeafNodeSourceUpdate, LeafNodeSourceCommit:
 		WriteOpaqueVec(b, []byte(node.groupID))
 		b.AddUint32(uint32(node.leafIndex))
@@ -362,7 +362,7 @@ func (node *LeafNodeTBS) Marshal(b *cryptobyte.Builder) {
 //
 // groupID and li can be left unspecified if the leaf node source is neither
 // update nor commit.
-func (node *LeafNode) verifySignature(cs CipherSuite, groupID GroupID, li leafIndex) bool {
+func (node *LeafNode) verifySignature(cs CipherSuite, groupID GroupID, li LeafIndex) bool {
 	leafNodeTBS, err := Marshal(&LeafNodeTBS{
 		LeafNode:  node,
 		groupID:   groupID,
@@ -371,7 +371,7 @@ func (node *LeafNode) verifySignature(cs CipherSuite, groupID GroupID, li leafIn
 	if err != nil {
 		return false
 	}
-	return cs.VerifyWithLabel([]byte(node.signatureKey), []byte("LeafNodeTBS"), leafNodeTBS, node.signature)
+	return cs.VerifyWithLabel([]byte(node.SignatureKey), []byte("LeafNodeTBS"), leafNodeTBS, node.Signature)
 }
 
 // Verify performs leaf node validation described in section 7.3.
@@ -379,42 +379,42 @@ func (node *LeafNode) verifySignature(cs CipherSuite, groupID GroupID, li leafIn
 // It does not perform all checks: it does not check that the credential is
 // valid.
 func (node *LeafNode) Verify(options *LeafNodeVerifyOptions) error {
-	li := options.leafIndex
+	li := options.LeafIndex
 
-	if !node.verifySignature(options.cipherSuite, options.groupID, li) {
+	if !node.verifySignature(options.CipherSuite, options.GroupID, li) {
 		return fmt.Errorf("mls: leaf node signature verification failed")
 	}
 
 	// TODO: check required_capabilities group extension
 
-	if _, ok := options.supportedCreds[node.credential.CredentialType]; !ok {
-		return fmt.Errorf("mls: credential type %v used by leaf node not supported by all members", node.credential.CredentialType)
+	if _, ok := options.SupportedCreds[node.Credential.CredentialType]; !ok {
+		return fmt.Errorf("mls: credential type %v used by leaf node not supported by all members", node.Credential.CredentialType)
 	}
 
-	if node.lifetime != nil {
-		now := options.now
+	if node.Lifetime != nil {
+		now := options.Now
 		if now == nil {
 			now = time.Now
 		}
-		if t := now(); !t.IsZero() && !node.lifetime.Verify(t) {
-			return fmt.Errorf("mls: lifetime verification failed (not before %v, not after %v)", node.lifetime.NotBeforeTime(), node.lifetime.NotAfterTime())
+		if t := now(); !t.IsZero() && !node.Lifetime.Verify(t) {
+			return fmt.Errorf("mls: lifetime verification failed (not before %v, not after %v)", node.Lifetime.NotBeforeTime(), node.Lifetime.NotAfterTime())
 		}
 	}
 
 	supportedExts := make(map[ExtensionType]struct{})
-	for _, et := range node.capabilities.Extensions {
+	for _, et := range node.Capabilities.Extensions {
 		supportedExts[et] = struct{}{}
 	}
-	for _, ext := range node.extensions {
+	for _, ext := range node.Extensions {
 		if _, ok := supportedExts[ext.ExtensionType]; !ok {
 			return fmt.Errorf("mls: extension type %d used by leaf node not supported by that leaf node", ext.ExtensionType)
 		}
 	}
 
-	if _, dup := options.signatureKeys[string(node.signatureKey)]; dup {
+	if _, dup := options.SignatureKeys[string(node.SignatureKey)]; dup {
 		return fmt.Errorf("mls: duplicate signature key in ratchet tree")
 	}
-	if _, dup := options.encryptionKeys[string(node.encryptionKey)]; dup {
+	if _, dup := options.EncryptionKeys[string(node.EncryptionKey)]; dup {
 		return fmt.Errorf("mls: duplicate encryption key in ratchet tree")
 	}
 
@@ -422,24 +422,24 @@ func (node *LeafNode) Verify(options *LeafNodeVerifyOptions) error {
 }
 
 type LeafNodeVerifyOptions struct {
-	cipherSuite    CipherSuite
-	groupID        GroupID
-	leafIndex      leafIndex
-	supportedCreds map[CredentialType]struct{}
-	signatureKeys  map[string]struct{}
-	encryptionKeys map[string]struct{}
-	now            func() time.Time
+	CipherSuite    CipherSuite
+	GroupID        GroupID
+	LeafIndex      LeafIndex
+	SupportedCreds map[CredentialType]struct{}
+	SignatureKeys  map[string]struct{}
+	EncryptionKeys map[string]struct{}
+	Now            func() time.Time
 }
 
 type UpdatePathNode struct {
-	encryptionKey       HPKEPublicKey
-	encryptedPathSecret []HPKECiphertext
+	EncryptionKey       HPKEPublicKey
+	EncryptedPathSecret []HPKECiphertext
 }
 
 func (node *UpdatePathNode) Unmarshal(s *cryptobyte.String) error {
 	*node = UpdatePathNode{}
 
-	if !ReadOpaqueVec(s, (*[]byte)(&node.encryptionKey)) {
+	if !ReadOpaqueVec(s, (*[]byte)(&node.EncryptionKey)) {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -448,15 +448,15 @@ func (node *UpdatePathNode) Unmarshal(s *cryptobyte.String) error {
 		if err := ciphertext.unmarshal(s); err != nil {
 			return err
 		}
-		node.encryptedPathSecret = append(node.encryptedPathSecret, ciphertext)
+		node.EncryptedPathSecret = append(node.EncryptedPathSecret, ciphertext)
 		return nil
 	})
 }
 
 func (node *UpdatePathNode) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(node.encryptionKey))
-	WriteVector(b, len(node.encryptedPathSecret), func(b *cryptobyte.Builder, i int) {
-		node.encryptedPathSecret[i].marshal(b)
+	WriteOpaqueVec(b, []byte(node.EncryptionKey))
+	WriteVector(b, len(node.EncryptedPathSecret), func(b *cryptobyte.Builder, i int) {
+		node.EncryptedPathSecret[i].marshal(b)
 	})
 }
 
@@ -473,7 +473,7 @@ func NodePrivFromPathSecret(cs CipherSuite, pathSecret []byte, nodePub HPKEPubli
 	if err != nil {
 		return nil, err
 	}
-	kem, _, _ := cs.hpke().Params()
+	kem, _, _ := cs.HPKE().Params()
 	pub, priv := kem.Scheme().DeriveKeyPair(nodeSecret)
 	if b, err := pub.MarshalBinary(); err != nil {
 		return nil, err
@@ -484,14 +484,14 @@ func NodePrivFromPathSecret(cs CipherSuite, pathSecret []byte, nodePub HPKEPubli
 }
 
 type UpdatePath struct {
-	leafNode LeafNode
-	nodes    []UpdatePathNode
+	LeafNode LeafNode
+	Nodes    []UpdatePathNode
 }
 
 func (up *UpdatePath) Unmarshal(s *cryptobyte.String) error {
 	*up = UpdatePath{}
 
-	if err := up.leafNode.Unmarshal(s); err != nil {
+	if err := up.LeafNode.Unmarshal(s); err != nil {
 		return err
 	}
 
@@ -500,15 +500,15 @@ func (up *UpdatePath) Unmarshal(s *cryptobyte.String) error {
 		if err := node.Unmarshal(s); err != nil {
 			return err
 		}
-		up.nodes = append(up.nodes, node)
+		up.Nodes = append(up.Nodes, node)
 		return nil
 	})
 }
 
 func (up *UpdatePath) Marshal(b *cryptobyte.Builder) {
-	up.leafNode.Marshal(b)
-	WriteVector(b, len(up.nodes), func(b *cryptobyte.Builder, i int) {
-		up.nodes[i].Marshal(b)
+	up.LeafNode.Marshal(b)
+	WriteVector(b, len(up.Nodes), func(b *cryptobyte.Builder, i int) {
+		up.Nodes[i].Marshal(b)
 	})
 }
 
@@ -536,48 +536,48 @@ func (t NodeType) Marshal(b *cryptobyte.Builder) {
 }
 
 type Node struct {
-	nodeType   NodeType
-	leafNode   *LeafNode   // for nodeTypeLeaf
-	parentNode *ParentNode // for nodeTypeParent
+	NodeType   NodeType
+	LeafNode   *LeafNode   // for nodeTypeLeaf
+	ParentNode *ParentNode // for nodeTypeParent
 }
 
 func (n *Node) Unmarshal(s *cryptobyte.String) error {
 	*n = Node{}
 
-	if err := n.nodeType.Unmarshal(s); err != nil {
+	if err := n.NodeType.Unmarshal(s); err != nil {
 		return err
 	}
 
-	switch n.nodeType {
+	switch n.NodeType {
 	case NodeTypeLeaf:
-		n.leafNode = new(LeafNode)
-		return n.leafNode.Unmarshal(s)
+		n.LeafNode = new(LeafNode)
+		return n.LeafNode.Unmarshal(s)
 	case NodeTypeParent:
-		n.parentNode = new(ParentNode)
-		return n.parentNode.Unmarshal(s)
+		n.ParentNode = new(ParentNode)
+		return n.ParentNode.Unmarshal(s)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (n *Node) Marshal(b *cryptobyte.Builder) {
-	n.nodeType.Marshal(b)
-	switch n.nodeType {
+	n.NodeType.Marshal(b)
+	switch n.NodeType {
 	case NodeTypeLeaf:
-		n.leafNode.Marshal(b)
+		n.LeafNode.Marshal(b)
 	case NodeTypeParent:
-		n.parentNode.Marshal(b)
+		n.ParentNode.Marshal(b)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (n *Node) EncryptionKey() HPKEPublicKey {
-	switch n.nodeType {
+	switch n.NodeType {
 	case NodeTypeLeaf:
-		return n.leafNode.encryptionKey
+		return n.LeafNode.EncryptionKey
 	case NodeTypeParent:
-		return n.parentNode.encryptionKey
+		return n.ParentNode.EncryptionKey
 	default:
 		panic("unreachable")
 	}
@@ -607,7 +607,7 @@ func (tree *RatchetTree) Unmarshal(s *cryptobyte.String) error {
 
 	// The raw tree doesn't include blank nodes at the end, fill it until next
 	// power of 2
-	for !isPowerOf2(uint32(len(*tree) + 1)) {
+	for !IsPowerOf2(uint32(len(*tree) + 1)) {
 		*tree = append(*tree, nil)
 	}
 
@@ -640,15 +640,15 @@ func (tree RatchetTree) Set(i NodeIndex, node *Node) {
 	tree[int(i)] = node
 }
 
-func (tree RatchetTree) GetLeaf(li leafIndex) *LeafNode {
+func (tree RatchetTree) GetLeaf(li LeafIndex) *LeafNode {
 	node := tree.Get(li.NodeIndex())
 	if node == nil {
 		return nil
 	}
-	if node.nodeType != NodeTypeLeaf {
+	if node.NodeType != NodeTypeLeaf {
 		panic("unreachable")
 	}
-	return node.leafNode
+	return node.LeafNode
 }
 
 // Resolve computes the resolution of a node.
@@ -662,8 +662,8 @@ func (tree RatchetTree) Resolve(x NodeIndex) []NodeIndex {
 		return append(tree.Resolve(l), tree.Resolve(r)...)
 	} else {
 		res := []NodeIndex{x}
-		if n.nodeType == NodeTypeParent {
-			for _, leafIndex := range n.parentNode.unmergedLeaves {
+		if n.NodeType == NodeTypeParent {
+			for _, leafIndex := range n.ParentNode.UnmergedLeaves {
 				res = append(res, leafIndex.NodeIndex())
 			}
 		}
@@ -674,14 +674,14 @@ func (tree RatchetTree) Resolve(x NodeIndex) []NodeIndex {
 func (tree RatchetTree) SupportedCreds() map[CredentialType]struct{} {
 	numMembers := 0
 	supportedCredsCount := make(map[CredentialType]int)
-	for li := leafIndex(0); li < leafIndex(tree.numLeaves()); li++ {
+	for li := LeafIndex(0); li < LeafIndex(tree.numLeaves()); li++ {
 		node := tree.GetLeaf(li)
 		if node == nil {
 			continue
 		}
 
 		numMembers++
-		for _, ct := range node.capabilities.Credentials {
+		for _, ct := range node.Capabilities.Credentials {
 			supportedCredsCount[ct]++
 		}
 	}
@@ -699,13 +699,13 @@ func (tree RatchetTree) SupportedCreds() map[CredentialType]struct{} {
 func (tree RatchetTree) Keys() (signatureKeys, encryptionKeys map[string]struct{}) {
 	signatureKeys = make(map[string]struct{})
 	encryptionKeys = make(map[string]struct{})
-	for li := leafIndex(0); li < leafIndex(tree.numLeaves()); li++ {
+	for li := LeafIndex(0); li < LeafIndex(tree.numLeaves()); li++ {
 		node := tree.GetLeaf(li)
 		if node == nil {
 			continue
 		}
-		signatureKeys[string(node.signatureKey)] = struct{}{}
-		encryptionKeys[string(node.encryptionKey)] = struct{}{}
+		signatureKeys[string(node.SignatureKey)] = struct{}{}
+		encryptionKeys[string(node.EncryptionKey)] = struct{}{}
 	}
 	return signatureKeys, encryptionKeys
 }
@@ -734,35 +734,35 @@ func (tree RatchetTree) VerifyIntegrity(ctx *GroupContext, now func() time.Time)
 	supportedCreds := tree.SupportedCreds()
 	signatureKeys := make(map[string]struct{})
 	encryptionKeys := make(map[string]struct{})
-	for li := leafIndex(0); li < leafIndex(numLeaves); li++ {
+	for li := LeafIndex(0); li < LeafIndex(numLeaves); li++ {
 		node := tree.GetLeaf(li)
 		if node == nil {
 			continue
 		}
 
 		err := node.Verify(&LeafNodeVerifyOptions{
-			cipherSuite:    cs,
-			groupID:        ctx.GroupID,
-			leafIndex:      li,
-			supportedCreds: supportedCreds,
-			signatureKeys:  signatureKeys,
-			encryptionKeys: encryptionKeys,
-			now:            now,
+			CipherSuite:    cs,
+			GroupID:        ctx.GroupID,
+			LeafIndex:      li,
+			SupportedCreds: supportedCreds,
+			SignatureKeys:  signatureKeys,
+			EncryptionKeys: encryptionKeys,
+			Now:            now,
 		})
 		if err != nil {
 			return fmt.Errorf("leaf node at index %v: %v", li, err)
 		}
 
-		signatureKeys[string(node.signatureKey)] = struct{}{}
-		encryptionKeys[string(node.encryptionKey)] = struct{}{}
+		signatureKeys[string(node.SignatureKey)] = struct{}{}
+		encryptionKeys[string(node.EncryptionKey)] = struct{}{}
 	}
 
 	for i, node := range tree {
-		if node == nil || node.nodeType != NodeTypeParent {
+		if node == nil || node.NodeType != NodeTypeParent {
 			continue
 		}
 		p := NodeIndex(i)
-		for _, unmergedLeaf := range node.parentNode.unmergedLeaves {
+		for _, unmergedLeaf := range node.ParentNode.UnmergedLeaves {
 			x := unmergedLeaf.NodeIndex()
 			for {
 				var ok bool
@@ -773,23 +773,23 @@ func (tree RatchetTree) VerifyIntegrity(ctx *GroupContext, now func() time.Time)
 				}
 
 				intermediateNode := tree.Get(x)
-				if intermediateNode != nil && !hasUnmergedLeaf(intermediateNode.parentNode, unmergedLeaf) {
+				if intermediateNode != nil && !hasUnmergedLeaf(intermediateNode.ParentNode, unmergedLeaf) {
 					return fmt.Errorf("mls: non-blank intermediate node at index %v is missing unmerged leaf %v", x, unmergedLeaf)
 				}
 			}
 		}
 
-		if _, dup := encryptionKeys[string(node.parentNode.encryptionKey)]; dup {
+		if _, dup := encryptionKeys[string(node.ParentNode.EncryptionKey)]; dup {
 			return fmt.Errorf("mls: duplicate encryption key in ratchet tree")
 		}
-		encryptionKeys[string(node.parentNode.encryptionKey)] = struct{}{}
+		encryptionKeys[string(node.ParentNode.EncryptionKey)] = struct{}{}
 	}
 
 	return nil
 }
 
-func hasUnmergedLeaf(node *ParentNode, unmergedLeaf leafIndex) bool {
-	for _, li := range node.unmergedLeaves {
+func hasUnmergedLeaf(node *ParentNode, unmergedLeaf LeafIndex) bool {
+	for _, li := range node.UnmergedLeaves {
 		if li == unmergedLeaf {
 			return true
 		}
@@ -801,7 +801,7 @@ func (tree RatchetTree) ComputeRootTreeHash(cs CipherSuite) ([]byte, error) {
 	return tree.ComputeTreeHash(cs, tree.numLeaves().Root(), nil)
 }
 
-func (tree RatchetTree) ComputeTreeHash(cs CipherSuite, x NodeIndex, exclude map[leafIndex]struct{}) ([]byte, error) {
+func (tree RatchetTree) ComputeTreeHash(cs CipherSuite, x NodeIndex, exclude map[LeafIndex]struct{}) ([]byte, error) {
 	n := tree.Get(x)
 
 	var b cryptobyte.Builder
@@ -810,7 +810,7 @@ func (tree RatchetTree) ComputeTreeHash(cs CipherSuite, x NodeIndex, exclude map
 
 		var l *LeafNode
 		if n != nil && !excluded {
-			l = n.leafNode
+			l = n.LeafNode
 			if l == nil {
 				panic("unreachable")
 			}
@@ -834,21 +834,21 @@ func (tree RatchetTree) ComputeTreeHash(cs CipherSuite, x NodeIndex, exclude map
 
 		var p *ParentNode
 		if n != nil {
-			p = n.parentNode
+			p = n.ParentNode
 			if p == nil {
 				panic("unreachable")
 			}
 
-			if len(p.unmergedLeaves) > 0 && len(exclude) > 0 {
-				unmergedLeaves := make([]leafIndex, 0, len(p.unmergedLeaves))
-				for _, li := range p.unmergedLeaves {
+			if len(p.UnmergedLeaves) > 0 && len(exclude) > 0 {
+				unmergedLeaves := make([]LeafIndex, 0, len(p.UnmergedLeaves))
+				for _, li := range p.UnmergedLeaves {
 					if _, excluded := exclude[li]; !excluded {
 						unmergedLeaves = append(unmergedLeaves, li)
 					}
 				}
 
 				filteredParent := *p
-				filteredParent.unmergedLeaves = unmergedLeaves
+				filteredParent.UnmergedLeaves = unmergedLeaves
 				p = &filteredParent
 			}
 		}
@@ -865,7 +865,7 @@ func (tree RatchetTree) ComputeTreeHash(cs CipherSuite, x NodeIndex, exclude map
 	return h.Sum(nil), nil
 }
 
-func marshalLeafNodeHashInput(b *cryptobyte.Builder, i leafIndex, node *LeafNode) {
+func marshalLeafNodeHashInput(b *cryptobyte.Builder, i LeafIndex, node *LeafNode) {
 	b.AddUint8(uint8(NodeTypeLeaf))
 	b.AddUint32(uint32(i))
 	WriteOptional(b, node != nil)
@@ -896,9 +896,9 @@ func (tree RatchetTree) verifyParentHashes(cs CipherSuite) bool {
 			continue
 		}
 
-		parentNode := node.parentNode
-		exclude := make(map[leafIndex]struct{}, len(parentNode.unmergedLeaves))
-		for _, li := range parentNode.unmergedLeaves {
+		parentNode := node.ParentNode
+		exclude := make(map[LeafIndex]struct{}, len(parentNode.UnmergedLeaves))
+		for _, li := range parentNode.UnmergedLeaves {
 			exclude[li] = struct{}{}
 		}
 
@@ -936,11 +936,11 @@ func (tree RatchetTree) findParentHash(nodeIndices []NodeIndex, parentHash []byt
 			continue
 		}
 		var h []byte
-		switch node.nodeType {
+		switch node.NodeType {
 		case NodeTypeLeaf:
-			h = node.leafNode.parentHash
+			h = node.LeafNode.ParentHash
 		case NodeTypeParent:
-			h = node.parentNode.parentHash
+			h = node.ParentNode.ParentHash
 		}
 		if bytes.Equal(h, parentHash) {
 			return true
@@ -953,15 +953,15 @@ func (tree RatchetTree) numLeaves() NumLeaves {
 	return NumLeavesFromWidth(uint32(len(tree)))
 }
 
-func (tree RatchetTree) FindLeaf(node *LeafNode) (leafIndex, bool) {
-	for li := leafIndex(0); li < leafIndex(tree.numLeaves()); li++ {
+func (tree RatchetTree) FindLeaf(node *LeafNode) (LeafIndex, bool) {
+	for li := LeafIndex(0); li < LeafIndex(tree.numLeaves()); li++ {
 		n := tree.GetLeaf(li)
 		if n == nil {
 			continue
 		}
 
 		// Encryption keys are unique
-		if !bytes.Equal(n.encryptionKey, node.encryptionKey) {
+		if !bytes.Equal(n.EncryptionKey, node.EncryptionKey) {
 			continue
 		}
 
@@ -974,7 +974,7 @@ func (tree RatchetTree) FindLeaf(node *LeafNode) (leafIndex, bool) {
 }
 
 func (tree *RatchetTree) Add(leafNode *LeafNode) {
-	li := leafIndex(0)
+	li := LeafIndex(0)
 	var ni NodeIndex
 	found := false
 	for {
@@ -1006,22 +1006,22 @@ func (tree *RatchetTree) Add(leafNode *LeafNode) {
 		}
 		node := tree.Get(p)
 		if node != nil {
-			node.parentNode.unmergedLeaves = append(node.parentNode.unmergedLeaves, li)
+			node.ParentNode.UnmergedLeaves = append(node.ParentNode.UnmergedLeaves, li)
 		}
 	}
 
 	tree.Set(ni, &Node{
-		nodeType: NodeTypeLeaf,
-		leafNode: leafNode,
+		NodeType: NodeTypeLeaf,
+		LeafNode: leafNode,
 	})
 }
 
-func (tree RatchetTree) Update(li leafIndex, leafNode *LeafNode) {
+func (tree RatchetTree) Update(li LeafIndex, leafNode *LeafNode) {
 	ni := li.NodeIndex()
 
 	tree.Set(ni, &Node{
-		nodeType: NodeTypeLeaf,
-		leafNode: leafNode,
+		NodeType: NodeTypeLeaf,
+		LeafNode: leafNode,
 	})
 
 	numLeaves := tree.numLeaves()
@@ -1036,7 +1036,7 @@ func (tree RatchetTree) Update(li leafIndex, leafNode *LeafNode) {
 	}
 }
 
-func (tree *RatchetTree) Remove(li leafIndex) {
+func (tree *RatchetTree) Remove(li LeafIndex) {
 	ni := li.NodeIndex()
 
 	numLeaves := tree.numLeaves()
@@ -1050,7 +1050,7 @@ func (tree *RatchetTree) Remove(li leafIndex) {
 		}
 	}
 
-	li = leafIndex(numLeaves - 1)
+	li = LeafIndex(numLeaves - 1)
 	lastPowerOf2 := len(*tree)
 	for {
 		ni = li.NodeIndex()
@@ -1058,7 +1058,7 @@ func (tree *RatchetTree) Remove(li leafIndex) {
 			break
 		}
 
-		if isPowerOf2(uint32(ni)) {
+		if IsPowerOf2(uint32(ni)) {
 			lastPowerOf2 = int(ni)
 		}
 
@@ -1099,7 +1099,7 @@ func (tree RatchetTree) FilteredDirectPath(x NodeIndex) []NodeIndex {
 	return path
 }
 
-func (tree RatchetTree) MergeUpdatePath(cs CipherSuite, senderLeafIndex leafIndex, path *UpdatePath) error {
+func (tree RatchetTree) MergeUpdatePath(cs CipherSuite, senderLeafIndex LeafIndex, path *UpdatePath) error {
 	senderNodeIndex := senderLeafIndex.NodeIndex()
 	numLeaves := tree.numLeaves()
 
@@ -1109,15 +1109,15 @@ func (tree RatchetTree) MergeUpdatePath(cs CipherSuite, senderLeafIndex leafInde
 	}
 
 	filteredDirectPath := tree.FilteredDirectPath(senderNodeIndex)
-	if len(filteredDirectPath) != len(path.nodes) {
-		return fmt.Errorf("mls: UpdatePath has %v nodes, but filtered direct path has %v nodes", len(path.nodes), len(filteredDirectPath))
+	if len(filteredDirectPath) != len(path.Nodes) {
+		return fmt.Errorf("mls: UpdatePath has %v nodes, but filtered direct path has %v nodes", len(path.Nodes), len(filteredDirectPath))
 	}
 	for i, ni := range filteredDirectPath {
-		pathNode := path.nodes[i]
+		pathNode := path.Nodes[i]
 		tree.Set(ni, &Node{
-			nodeType: NodeTypeParent,
-			parentNode: &ParentNode{
-				encryptionKey: pathNode.encryptionKey,
+			NodeType: NodeTypeParent,
+			ParentNode: &ParentNode{
+				EncryptionKey: pathNode.EncryptionKey,
 			},
 		})
 	}
@@ -1126,7 +1126,7 @@ func (tree RatchetTree) MergeUpdatePath(cs CipherSuite, senderLeafIndex leafInde
 	var prevParentHash []byte
 	for i := len(filteredDirectPath) - 1; i >= 0; i-- {
 		ni := filteredDirectPath[i]
-		node := tree.Get(ni).parentNode
+		node := tree.Get(ni).ParentNode
 
 		l, r, ok := ni.Children()
 		if !ok {
@@ -1150,7 +1150,7 @@ func (tree RatchetTree) MergeUpdatePath(cs CipherSuite, senderLeafIndex leafInde
 			return err
 		}
 
-		node.parentHash = prevParentHash
+		node.ParentHash = prevParentHash
 		h, err := node.ComputeParentHash(cs, treeHash)
 		if err != nil {
 			return err
@@ -1158,24 +1158,24 @@ func (tree RatchetTree) MergeUpdatePath(cs CipherSuite, senderLeafIndex leafInde
 		prevParentHash = h
 	}
 
-	if !bytes.Equal(path.leafNode.parentHash, prevParentHash) {
+	if !bytes.Equal(path.LeafNode.ParentHash, prevParentHash) {
 		return fmt.Errorf("mls: parent hash mismatch for update path's leaf node")
 	}
 
 	tree.Set(senderNodeIndex, &Node{
-		nodeType: NodeTypeLeaf,
-		leafNode: &path.leafNode,
+		NodeType: NodeTypeLeaf,
+		LeafNode: &path.LeafNode,
 	})
 
 	return nil
 }
 
-func (tree RatchetTree) DecryptPathSecrets(cs CipherSuite, groupCtx *GroupContext, senderLeafIndex, recipientLeafIndex leafIndex, path *UpdatePath, privTree [][]byte) ([]byte, error) {
+func (tree RatchetTree) DecryptPathSecrets(cs CipherSuite, groupCtx *GroupContext, senderLeafIndex, recipientLeafIndex LeafIndex, path *UpdatePath, privTree [][]byte) ([]byte, error) {
 	senderNodeIndex := senderLeafIndex.NodeIndex()
 	recipientNodeIndex := recipientLeafIndex.NodeIndex()
 
 	senderFilteredDirectPath := tree.FilteredDirectPath(senderNodeIndex)
-	if len(path.nodes) != len(senderFilteredDirectPath) {
+	if len(path.Nodes) != len(senderFilteredDirectPath) {
 		return nil, fmt.Errorf("mls: invalid UpdatePath length")
 	}
 
@@ -1192,7 +1192,7 @@ func (tree RatchetTree) DecryptPathSecrets(cs CipherSuite, groupCtx *GroupContex
 	if recipientAncestorIndex < 0 {
 		return nil, fmt.Errorf("mls: cannot find recipient ancestor")
 	}
-	updatePathNode := path.nodes[recipientAncestorIndex]
+	updatePathNode := path.Nodes[recipientAncestorIndex]
 
 	// Find the copath node
 	ancestor := CommonAncestor(senderNodeIndex, recipientNodeIndex)
@@ -1210,7 +1210,7 @@ func (tree RatchetTree) DecryptPathSecrets(cs CipherSuite, groupCtx *GroupContex
 	}
 
 	copathResolution := tree.Resolve(copathNode)
-	if len(updatePathNode.encryptedPathSecret) != len(copathResolution) {
+	if len(updatePathNode.EncryptedPathSecret) != len(copathResolution) {
 		return nil, fmt.Errorf("mls: invalid UpdatePathNode.encrypted_path_secret length")
 	}
 
@@ -1228,7 +1228,7 @@ func (tree RatchetTree) DecryptPathSecrets(cs CipherSuite, groupCtx *GroupContex
 	if nodePriv == nil {
 		return nil, fmt.Errorf("mls: no private key found")
 	}
-	ciphertext := updatePathNode.encryptedPathSecret[resolutionIndex]
+	ciphertext := updatePathNode.EncryptedPathSecret[resolutionIndex]
 
 	// Decrypt the path secret using the private key from the resolution node
 	pathSecret, err := DecryptPathSecret(cs, nodePriv, groupCtx, ciphertext)
@@ -1264,25 +1264,25 @@ func (tree RatchetTree) DecryptPathSecrets(cs CipherSuite, groupCtx *GroupContex
 	return commitSecret, nil
 }
 
-func (tree *RatchetTree) Apply(proposals []Proposal, senders []leafIndex) {
+func (tree *RatchetTree) Apply(proposals []Proposal, senders []LeafIndex) {
 	// Apply all update proposals
 	for i, prop := range proposals {
-		if prop.proposalType == ProposalTypeUpdate {
-			tree.Update(senders[i], &prop.update.leafNode)
+		if prop.ProposalType == ProposalTypeUpdate {
+			tree.Update(senders[i], &prop.Update.LeafNode)
 		}
 	}
 
 	// Apply all remove proposals
 	for _, prop := range proposals {
-		if prop.proposalType == ProposalTypeRemove {
-			tree.Remove(prop.remove.removed)
+		if prop.ProposalType == ProposalTypeRemove {
+			tree.Remove(prop.Remove.Removed)
 		}
 	}
 
 	// Apply all add proposals
 	for _, prop := range proposals {
-		if prop.proposalType == ProposalTypeAdd {
-			tree.Add(&prop.add.keyPackage.LeafNode)
+		if prop.ProposalType == ProposalTypeAdd {
+			tree.Add(&prop.Add.KeyPackage.LeafNode)
 		}
 	}
 }

@@ -64,23 +64,23 @@ func (st senderType) marshal(b *cryptobyte.Builder) {
 }
 
 type Sender struct {
-	senderType  senderType
-	leafIndex   leafIndex // for senderTypeMember
-	senderIndex uint32    // for senderTypeExternal
+	SenderType  senderType
+	LeafIndex   LeafIndex // for senderTypeMember
+	SenderIndex uint32    // for senderTypeExternal
 }
 
 func (snd *Sender) Unmarshal(s *cryptobyte.String) error {
 	*snd = Sender{}
-	if err := snd.senderType.unmarshal(s); err != nil {
+	if err := snd.SenderType.unmarshal(s); err != nil {
 		return err
 	}
-	switch snd.senderType {
+	switch snd.SenderType {
 	case senderTypeMember:
-		if !s.ReadUint32((*uint32)(&snd.leafIndex)) {
+		if !s.ReadUint32((*uint32)(&snd.LeafIndex)) {
 			return io.ErrUnexpectedEOF
 		}
 	case senderTypeExternal:
-		if !s.ReadUint32(&snd.senderIndex) {
+		if !s.ReadUint32(&snd.SenderIndex) {
 			return io.ErrUnexpectedEOF
 		}
 	}
@@ -88,12 +88,12 @@ func (snd *Sender) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (snd *Sender) Marshal(b *cryptobyte.Builder) {
-	snd.senderType.marshal(b)
-	switch snd.senderType {
+	snd.SenderType.marshal(b)
+	switch snd.SenderType {
 	case senderTypeMember:
-		b.AddUint32(uint32(snd.leafIndex))
+		b.AddUint32(uint32(snd.LeafIndex))
 	case senderTypeExternal:
-		b.AddUint32(snd.senderIndex)
+		b.AddUint32(snd.SenderIndex)
 	}
 }
 
@@ -128,194 +128,194 @@ func (wf WireFormat) Marshal(b *cryptobyte.Builder) {
 type GroupID []byte
 
 type FramedContent struct {
-	groupID           GroupID
-	epoch             uint64
-	sender            Sender
-	authenticatedData []byte
+	GroupID           GroupID
+	Epoch             uint64
+	Sender            Sender
+	AuthenticatedData []byte
 
-	contentType     contentType
-	applicationData []byte    // for contentTypeApplication
-	proposal        *Proposal // for contentTypeProposal
-	commit          *Commit   // for contentTypeCommit
+	ContentType     contentType
+	ApplicationData []byte    // for contentTypeApplication
+	Proposal        *Proposal // for contentTypeProposal
+	Commit          *Commit   // for contentTypeCommit
 }
 
 func (content *FramedContent) Unmarshal(s *cryptobyte.String) error {
 	*content = FramedContent{}
 
-	if !ReadOpaqueVec(s, (*[]byte)(&content.groupID)) || !s.ReadUint64(&content.epoch) {
+	if !ReadOpaqueVec(s, (*[]byte)(&content.GroupID)) || !s.ReadUint64(&content.Epoch) {
 		return io.ErrUnexpectedEOF
 	}
-	if err := content.sender.Unmarshal(s); err != nil {
+	if err := content.Sender.Unmarshal(s); err != nil {
 		return err
 	}
-	if !ReadOpaqueVec(s, &content.authenticatedData) {
+	if !ReadOpaqueVec(s, &content.AuthenticatedData) {
 		return io.ErrUnexpectedEOF
 	}
-	if err := content.contentType.unmarshal(s); err != nil {
+	if err := content.ContentType.unmarshal(s); err != nil {
 		return err
 	}
 
-	switch content.contentType {
+	switch content.ContentType {
 	case contentTypeApplication:
-		if !ReadOpaqueVec(s, &content.applicationData) {
+		if !ReadOpaqueVec(s, &content.ApplicationData) {
 			return io.ErrUnexpectedEOF
 		}
 		return nil
 	case contentTypeProposal:
-		content.proposal = new(Proposal)
-		return content.proposal.Unmarshal(s)
+		content.Proposal = new(Proposal)
+		return content.Proposal.Unmarshal(s)
 	case contentTypeCommit:
-		content.commit = new(Commit)
-		return content.commit.Unmarshal(s)
+		content.Commit = new(Commit)
+		return content.Commit.Unmarshal(s)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (content *FramedContent) marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(content.groupID))
-	b.AddUint64(content.epoch)
-	content.sender.Marshal(b)
-	WriteOpaqueVec(b, content.authenticatedData)
-	content.contentType.marshal(b)
-	switch content.contentType {
+	WriteOpaqueVec(b, []byte(content.GroupID))
+	b.AddUint64(content.Epoch)
+	content.Sender.Marshal(b)
+	WriteOpaqueVec(b, content.AuthenticatedData)
+	content.ContentType.marshal(b)
+	switch content.ContentType {
 	case contentTypeApplication:
-		WriteOpaqueVec(b, content.applicationData)
+		WriteOpaqueVec(b, content.ApplicationData)
 	case contentTypeProposal:
-		content.proposal.Marshal(b)
+		content.Proposal.Marshal(b)
 	case contentTypeCommit:
-		content.commit.Marshal(b)
+		content.Commit.Marshal(b)
 	default:
 		panic("unreachable")
 	}
 }
 
 type MLSMessage struct {
-	version        ProtocolVersion
-	wireFormat     WireFormat
-	publicMessage  *PublicMessage  // for wireFormatMLSPublicMessage
-	privateMessage *PrivateMessage // for wireFormatMLSPrivateMessage
-	welcome        *Welcome        // for wireFormatMLSWelcome
-	groupInfo      *GroupInfo      // for wireFormatMLSGroupInfo
-	keyPackage     *KeyPackage     // for wireFormatMLSKeyPackage
+	Version        ProtocolVersion
+	WireFormat     WireFormat
+	PublicMessage  *PublicMessage  // for wireFormatMLSPublicMessage
+	PrivateMessage *PrivateMessage // for wireFormatMLSPrivateMessage
+	Welcome        *Welcome        // for wireFormatMLSWelcome
+	GroupInfo      *GroupInfo      // for wireFormatMLSGroupInfo
+	KeyPackage     *KeyPackage     // for wireFormatMLSKeyPackage
 }
 
 func (msg *MLSMessage) Unmarshal(s *cryptobyte.String) error {
 	*msg = MLSMessage{}
 
-	if !s.ReadUint16((*uint16)(&msg.version)) {
+	if !s.ReadUint16((*uint16)(&msg.Version)) {
 		return io.ErrUnexpectedEOF
 	}
-	if msg.version != ProtocolVersionMLS10 {
-		return fmt.Errorf("mls: invalid protocol version %d", msg.version)
+	if msg.Version != ProtocolVersionMLS10 {
+		return fmt.Errorf("mls: invalid protocol version %d", msg.Version)
 	}
 
-	if err := msg.wireFormat.Unmarshal(s); err != nil {
+	if err := msg.WireFormat.Unmarshal(s); err != nil {
 		return err
 	}
 
-	switch msg.wireFormat {
+	switch msg.WireFormat {
 	case WireFormatMLSPublicMessage:
-		msg.publicMessage = new(PublicMessage)
-		return msg.publicMessage.Unmarshal(s)
+		msg.PublicMessage = new(PublicMessage)
+		return msg.PublicMessage.Unmarshal(s)
 	case WireFormatMLSPrivateMessage:
-		msg.privateMessage = new(PrivateMessage)
-		return msg.privateMessage.Unmarshal(s)
+		msg.PrivateMessage = new(PrivateMessage)
+		return msg.PrivateMessage.Unmarshal(s)
 	case WireFormatMLSWelcome:
-		msg.welcome = new(Welcome)
-		return msg.welcome.Unmarshal(s)
+		msg.Welcome = new(Welcome)
+		return msg.Welcome.Unmarshal(s)
 	case WireFormatMLSGroupInfo:
-		msg.groupInfo = new(GroupInfo)
-		return msg.groupInfo.Unmarshal(s)
+		msg.GroupInfo = new(GroupInfo)
+		return msg.GroupInfo.Unmarshal(s)
 	case WireFormatMLSKeyPackage:
-		msg.keyPackage = new(KeyPackage)
-		return msg.keyPackage.Unmarshal(s)
+		msg.KeyPackage = new(KeyPackage)
+		return msg.KeyPackage.Unmarshal(s)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (msg *MLSMessage) Marshal(b *cryptobyte.Builder) {
-	b.AddUint16(uint16(msg.version))
-	msg.wireFormat.Marshal(b)
-	switch msg.wireFormat {
+	b.AddUint16(uint16(msg.Version))
+	msg.WireFormat.Marshal(b)
+	switch msg.WireFormat {
 	case WireFormatMLSPublicMessage:
-		msg.publicMessage.Marshal(b)
+		msg.PublicMessage.Marshal(b)
 	case WireFormatMLSPrivateMessage:
-		msg.privateMessage.Marshal(b)
+		msg.PrivateMessage.Marshal(b)
 	case WireFormatMLSWelcome:
-		msg.welcome.Marshal(b)
+		msg.Welcome.Marshal(b)
 	case WireFormatMLSGroupInfo:
-		msg.groupInfo.Marshal(b)
+		msg.GroupInfo.Marshal(b)
 	case WireFormatMLSKeyPackage:
-		msg.keyPackage.Marshal(b)
+		msg.KeyPackage.Marshal(b)
 	default:
 		panic("unreachable")
 	}
 }
 
 type AuthenticatedContent struct {
-	wireFormat WireFormat
-	content    FramedContent
-	auth       FramedContentAuthData
+	WireFormat WireFormat
+	Content    FramedContent
+	Auth       FramedContentAuthData
 }
 
 func SignAuthenticatedContent(cs CipherSuite, signKey []byte, wf WireFormat, content *FramedContent, ctx *GroupContext) (*AuthenticatedContent, error) {
 	authContent := AuthenticatedContent{
-		wireFormat: wf,
-		content:    *content,
+		WireFormat: wf,
+		Content:    *content,
 	}
 	tbs := authContent.FramedContentTBS(ctx)
 	signature, err := SignFramedContent(cs, signKey, tbs)
 	if err != nil {
 		return nil, err
 	}
-	authContent.auth.signature = signature
+	authContent.Auth.Signature = signature
 	return &authContent, nil
 }
 
 func (authContent *AuthenticatedContent) Unmarshal(s *cryptobyte.String) error {
-	if err := authContent.wireFormat.Unmarshal(s); err != nil {
+	if err := authContent.WireFormat.Unmarshal(s); err != nil {
 		return err
 	}
-	if err := authContent.content.Unmarshal(s); err != nil {
+	if err := authContent.Content.Unmarshal(s); err != nil {
 		return err
 	}
-	if err := authContent.auth.Unmarshal(s, authContent.content.contentType); err != nil {
+	if err := authContent.Auth.Unmarshal(s, authContent.Content.ContentType); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (authContent *AuthenticatedContent) Marshal(b *cryptobyte.Builder) {
-	authContent.wireFormat.Marshal(b)
-	authContent.content.marshal(b)
-	authContent.auth.Marshal(b, authContent.content.contentType)
+	authContent.WireFormat.Marshal(b)
+	authContent.Content.marshal(b)
+	authContent.Auth.Marshal(b, authContent.Content.ContentType)
 }
 
 func (authContent *AuthenticatedContent) ConfirmedTranscriptHashInput() *ConfirmedTranscriptHashInput {
 	return &ConfirmedTranscriptHashInput{
-		wireFormat: authContent.wireFormat,
-		content:    authContent.content,
-		signature:  authContent.auth.signature,
+		WireFormat: authContent.WireFormat,
+		Content:    authContent.Content,
+		Signature:  authContent.Auth.Signature,
 	}
 }
 
 func (authContent *AuthenticatedContent) FramedContentTBS(ctx *GroupContext) *FramedContentTBS {
 	return &FramedContentTBS{
-		version:    ProtocolVersionMLS10,
-		wireFormat: authContent.wireFormat,
-		content:    authContent.content,
-		context:    ctx,
+		Version:    ProtocolVersionMLS10,
+		WireFormat: authContent.WireFormat,
+		Content:    authContent.Content,
+		Context:    ctx,
 	}
 }
 
 func (authContent *AuthenticatedContent) VerifySignature(cs CipherSuite, verifKey []byte, ctx *GroupContext) bool {
-	return authContent.auth.VerifySignature(cs, verifKey, authContent.FramedContentTBS(ctx))
+	return authContent.Auth.VerifySignature(cs, verifKey, authContent.FramedContentTBS(ctx))
 }
 
 func (authContent *AuthenticatedContent) GenerateProposalRef(cs CipherSuite) (ProposalRef, error) {
-	if authContent.content.contentType != contentTypeProposal {
+	if authContent.Content.ContentType != contentTypeProposal {
 		panic("mls: AuthenticatedContent is not a proposal")
 	}
 
@@ -326,7 +326,7 @@ func (authContent *AuthenticatedContent) GenerateProposalRef(cs CipherSuite) (Pr
 		return nil, err
 	}
 
-	hash, err := cs.refHash([]byte("MLS 1.0 Proposal Reference"), raw)
+	hash, err := cs.RefHash([]byte("MLS 1.0 Proposal Reference"), raw)
 	if err != nil {
 		return nil, err
 	}
@@ -335,19 +335,19 @@ func (authContent *AuthenticatedContent) GenerateProposalRef(cs CipherSuite) (Pr
 }
 
 type FramedContentAuthData struct {
-	signature       []byte
-	confirmationTag []byte // for contentTypeCommit
+	Signature       []byte
+	ConfirmationTag []byte // for contentTypeCommit
 }
 
 func (authData *FramedContentAuthData) Unmarshal(s *cryptobyte.String, ct contentType) error {
 	*authData = FramedContentAuthData{}
 
-	if !ReadOpaqueVec(s, &authData.signature) {
+	if !ReadOpaqueVec(s, &authData.Signature) {
 		return io.ErrUnexpectedEOF
 	}
 
 	if ct == contentTypeCommit {
-		if !ReadOpaqueVec(s, &authData.confirmationTag) {
+		if !ReadOpaqueVec(s, &authData.ConfirmationTag) {
 			return io.ErrUnexpectedEOF
 		}
 	}
@@ -356,18 +356,18 @@ func (authData *FramedContentAuthData) Unmarshal(s *cryptobyte.String, ct conten
 }
 
 func (authData *FramedContentAuthData) Marshal(b *cryptobyte.Builder, ct contentType) {
-	WriteOpaqueVec(b, authData.signature)
+	WriteOpaqueVec(b, authData.Signature)
 
 	if ct == contentTypeCommit {
-		WriteOpaqueVec(b, authData.confirmationTag)
+		WriteOpaqueVec(b, authData.ConfirmationTag)
 	}
 }
 
 func (authData *FramedContentAuthData) VerifyConfirmationTag(cs CipherSuite, confirmationKey, confirmedTranscriptHash []byte) bool {
-	if len(authData.confirmationTag) == 0 {
+	if len(authData.ConfirmationTag) == 0 {
 		return false
 	}
-	return cs.verifyMAC(confirmationKey, confirmedTranscriptHash, authData.confirmationTag)
+	return cs.VerifyMAC(confirmationKey, confirmedTranscriptHash, authData.ConfirmationTag)
 }
 
 func (authData *FramedContentAuthData) VerifySignature(cs CipherSuite, verifKey []byte, content *FramedContentTBS) bool {
@@ -375,7 +375,7 @@ func (authData *FramedContentAuthData) VerifySignature(cs CipherSuite, verifKey 
 	if err != nil {
 		return false
 	}
-	return cs.VerifyWithLabel(verifKey, []byte("FramedContentTBS"), rawContent, authData.signature)
+	return cs.VerifyWithLabel(verifKey, []byte("FramedContentTBS"), rawContent, authData.Signature)
 }
 
 func SignFramedContent(cs CipherSuite, signKey []byte, content *FramedContentTBS) ([]byte, error) {
@@ -387,26 +387,26 @@ func SignFramedContent(cs CipherSuite, signKey []byte, content *FramedContentTBS
 }
 
 type FramedContentTBS struct {
-	version    ProtocolVersion
-	wireFormat WireFormat
-	content    FramedContent
-	context    *GroupContext // for senderTypeMember and senderTypeNewMemberCommit
+	Version    ProtocolVersion
+	WireFormat WireFormat
+	Content    FramedContent
+	Context    *GroupContext // for senderTypeMember and senderTypeNewMemberCommit
 }
 
 func (content *FramedContentTBS) Marshal(b *cryptobyte.Builder) {
-	b.AddUint16(uint16(content.version))
-	content.wireFormat.Marshal(b)
-	content.content.marshal(b)
-	switch content.content.sender.senderType {
+	b.AddUint16(uint16(content.Version))
+	content.WireFormat.Marshal(b)
+	content.Content.marshal(b)
+	switch content.Content.Sender.SenderType {
 	case senderTypeMember, senderTypeNewMemberCommit:
-		content.context.Marshal(b)
+		content.Context.Marshal(b)
 	}
 }
 
 type PublicMessage struct {
-	content       FramedContent
-	auth          FramedContentAuthData
-	membershipTag []byte // for senderTypeMember
+	Content       FramedContent
+	Auth          FramedContentAuthData
+	MembershipTag []byte // for senderTypeMember
 }
 
 func SignPublicMessage(cs CipherSuite, signKey []byte, content *FramedContent, ctx *GroupContext) (*PublicMessage, error) {
@@ -415,23 +415,23 @@ func SignPublicMessage(cs CipherSuite, signKey []byte, content *FramedContent, c
 		return nil, err
 	}
 	return &PublicMessage{
-		content: authContent.content,
-		auth:    authContent.auth,
+		Content: authContent.Content,
+		Auth:    authContent.Auth,
 	}, nil
 }
 
 func (msg *PublicMessage) Unmarshal(s *cryptobyte.String) error {
 	*msg = PublicMessage{}
 
-	if err := msg.content.Unmarshal(s); err != nil {
+	if err := msg.Content.Unmarshal(s); err != nil {
 		return err
 	}
-	if err := msg.auth.Unmarshal(s, msg.content.contentType); err != nil {
+	if err := msg.Auth.Unmarshal(s, msg.Content.ContentType); err != nil {
 		return err
 	}
 
-	if msg.content.sender.senderType == senderTypeMember {
-		if !ReadOpaqueVec(s, &msg.membershipTag) {
+	if msg.Content.Sender.SenderType == senderTypeMember {
+		if !ReadOpaqueVec(s, &msg.MembershipTag) {
 			return io.ErrUnexpectedEOF
 		}
 	}
@@ -440,73 +440,73 @@ func (msg *PublicMessage) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (msg *PublicMessage) Marshal(b *cryptobyte.Builder) {
-	msg.content.marshal(b)
-	msg.auth.Marshal(b, msg.content.contentType)
+	msg.Content.marshal(b)
+	msg.Auth.Marshal(b, msg.Content.ContentType)
 
-	if msg.content.sender.senderType == senderTypeMember {
-		WriteOpaqueVec(b, msg.membershipTag)
+	if msg.Content.Sender.SenderType == senderTypeMember {
+		WriteOpaqueVec(b, msg.MembershipTag)
 	}
 }
 
 func (msg *PublicMessage) AuthenticatedContent() *AuthenticatedContent {
 	return &AuthenticatedContent{
-		wireFormat: WireFormatMLSPublicMessage,
-		content:    msg.content,
-		auth:       msg.auth,
+		WireFormat: WireFormatMLSPublicMessage,
+		Content:    msg.Content,
+		Auth:       msg.Auth,
 	}
 }
 
 func (msg *PublicMessage) AuthenticatedContentTBM(ctx *GroupContext) *AuthenticatedContentTBM {
 	return &AuthenticatedContentTBM{
-		contentTBS: *msg.AuthenticatedContent().FramedContentTBS(ctx),
-		auth:       msg.auth,
+		ContentTBS: *msg.AuthenticatedContent().FramedContentTBS(ctx),
+		Auth:       msg.Auth,
 	}
 }
 
 func (msg *PublicMessage) SignMembershipTag(cs CipherSuite, membershipKey []byte, ctx *GroupContext) error {
-	if msg.content.sender.senderType != senderTypeMember {
+	if msg.Content.Sender.SenderType != senderTypeMember {
 		return nil
 	}
 	rawAuthContentTBM, err := Marshal(msg.AuthenticatedContentTBM(ctx))
 	if err != nil {
 		return err
 	}
-	msg.membershipTag = cs.signMAC(membershipKey, rawAuthContentTBM)
+	msg.MembershipTag = cs.SignMAC(membershipKey, rawAuthContentTBM)
 	return nil
 }
 
 func (msg *PublicMessage) VerifyMembershipTag(cs CipherSuite, membershipKey []byte, ctx *GroupContext) bool {
-	if msg.content.sender.senderType != senderTypeMember {
+	if msg.Content.Sender.SenderType != senderTypeMember {
 		return true // there is no membership tag
 	}
 	rawAuthContentTBM, err := Marshal(msg.AuthenticatedContentTBM(ctx))
 	if err != nil {
 		return false
 	}
-	return cs.verifyMAC(membershipKey, rawAuthContentTBM, msg.membershipTag)
+	return cs.VerifyMAC(membershipKey, rawAuthContentTBM, msg.MembershipTag)
 }
 
 type AuthenticatedContentTBM struct {
-	contentTBS FramedContentTBS
-	auth       FramedContentAuthData
+	ContentTBS FramedContentTBS
+	Auth       FramedContentAuthData
 }
 
 func (tbm *AuthenticatedContentTBM) Marshal(b *cryptobyte.Builder) {
-	tbm.contentTBS.Marshal(b)
-	tbm.auth.Marshal(b, tbm.contentTBS.content.contentType)
+	tbm.ContentTBS.Marshal(b)
+	tbm.Auth.Marshal(b, tbm.ContentTBS.Content.ContentType)
 }
 
 type PrivateMessage struct {
-	groupID             GroupID
-	epoch               uint64
-	contentType         contentType
-	authenticatedData   []byte
-	encryptedSenderData []byte
-	ciphertext          []byte
+	GroupID             GroupID
+	Epoch               uint64
+	ContentType         contentType
+	AuthenticatedData   []byte
+	EncryptedSenderData []byte
+	Ciphertext          []byte
 }
 
 func EncryptPrivateMessage(cs CipherSuite, signPriv []byte, secret RatchetSecret, senderDataSecret []byte, content *FramedContent, senderData *SenderData, ctx *GroupContext) (*PrivateMessage, error) {
-	ciphertext, err := EncryptPrivateMessageContent(cs, signPriv, secret, content, ctx, senderData.reuseGuard)
+	ciphertext, err := EncryptPrivateMessageContent(cs, signPriv, secret, content, ctx, senderData.ReuseGuard)
 	if err != nil {
 		return nil, err
 	}
@@ -515,28 +515,28 @@ func EncryptPrivateMessage(cs CipherSuite, signPriv []byte, secret RatchetSecret
 		return nil, err
 	}
 	return &PrivateMessage{
-		groupID:             content.groupID,
-		epoch:               content.epoch,
-		contentType:         content.contentType,
-		authenticatedData:   content.authenticatedData,
-		encryptedSenderData: encryptedSenderData,
-		ciphertext:          ciphertext,
+		GroupID:             content.GroupID,
+		Epoch:               content.Epoch,
+		ContentType:         content.ContentType,
+		AuthenticatedData:   content.AuthenticatedData,
+		EncryptedSenderData: encryptedSenderData,
+		Ciphertext:          ciphertext,
 	}, nil
 }
 
 func (msg *PrivateMessage) Unmarshal(s *cryptobyte.String) error {
 	*msg = PrivateMessage{}
-	ok := ReadOpaqueVec(s, (*[]byte)(&msg.groupID)) &&
-		s.ReadUint64(&msg.epoch)
+	ok := ReadOpaqueVec(s, (*[]byte)(&msg.GroupID)) &&
+		s.ReadUint64(&msg.Epoch)
 	if !ok {
 		return io.ErrUnexpectedEOF
 	}
-	if err := msg.contentType.unmarshal(s); err != nil {
+	if err := msg.ContentType.unmarshal(s); err != nil {
 		return err
 	}
-	ok = ReadOpaqueVec(s, &msg.authenticatedData) &&
-		ReadOpaqueVec(s, &msg.encryptedSenderData) &&
-		ReadOpaqueVec(s, &msg.ciphertext)
+	ok = ReadOpaqueVec(s, &msg.AuthenticatedData) &&
+		ReadOpaqueVec(s, &msg.EncryptedSenderData) &&
+		ReadOpaqueVec(s, &msg.Ciphertext)
 	if !ok {
 		return io.ErrUnexpectedEOF
 	}
@@ -544,41 +544,41 @@ func (msg *PrivateMessage) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (msg *PrivateMessage) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(msg.groupID))
-	b.AddUint64(msg.epoch)
-	msg.contentType.marshal(b)
-	WriteOpaqueVec(b, msg.authenticatedData)
-	WriteOpaqueVec(b, msg.encryptedSenderData)
-	WriteOpaqueVec(b, msg.ciphertext)
+	WriteOpaqueVec(b, []byte(msg.GroupID))
+	b.AddUint64(msg.Epoch)
+	msg.ContentType.marshal(b)
+	WriteOpaqueVec(b, msg.AuthenticatedData)
+	WriteOpaqueVec(b, msg.EncryptedSenderData)
+	WriteOpaqueVec(b, msg.Ciphertext)
 }
 
 func (msg *PrivateMessage) DecryptSenderData(cs CipherSuite, senderDataSecret []byte) (*SenderData, error) {
-	key, err := ExpandSenderDataKey(cs, senderDataSecret, msg.ciphertext)
+	key, err := ExpandSenderDataKey(cs, senderDataSecret, msg.Ciphertext)
 	if err != nil {
 		return nil, err
 	}
-	nonce, err := ExpandSenderDataNonce(cs, senderDataSecret, msg.ciphertext)
+	nonce, err := ExpandSenderDataNonce(cs, senderDataSecret, msg.Ciphertext)
 	if err != nil {
 		return nil, err
 	}
 
-	aad := senderDataAAD{
-		groupID:     msg.groupID,
-		epoch:       msg.epoch,
-		contentType: msg.contentType,
+	aad := SenderDataAAD{
+		GroupID:     msg.GroupID,
+		Epoch:       msg.Epoch,
+		ContentType: msg.ContentType,
 	}
 	rawAAD, err := Marshal(&aad)
 	if err != nil {
 		return nil, err
 	}
 
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	cipher, err := aead.New(key)
 	if err != nil {
 		return nil, err
 	}
 
-	rawSenderData, err := cipher.Open(nil, nonce, msg.encryptedSenderData, rawAAD)
+	rawSenderData, err := cipher.Open(nil, nonce, msg.EncryptedSenderData, rawAAD)
 	if err != nil {
 		return nil, err
 	}
@@ -597,31 +597,31 @@ func (msg *PrivateMessage) DecryptContent(cs CipherSuite, secret RatchetSecret, 
 		return nil, err
 	}
 
-	aad := privateContentAAD{
-		groupID:           msg.groupID,
-		epoch:             msg.epoch,
-		contentType:       msg.contentType,
-		authenticatedData: msg.authenticatedData,
+	aad := PrivateContentAAD{
+		GroupID:           msg.GroupID,
+		Epoch:             msg.Epoch,
+		ContentType:       msg.ContentType,
+		AuthenticatedData: msg.AuthenticatedData,
 	}
 	rawAAD, err := Marshal(&aad)
 	if err != nil {
 		return nil, err
 	}
 
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	cipher, err := aead.New(key)
 	if err != nil {
 		return nil, err
 	}
 
-	rawContent, err := cipher.Open(nil, nonce, msg.ciphertext, rawAAD)
+	rawContent, err := cipher.Open(nil, nonce, msg.Ciphertext, rawAAD)
 	if err != nil {
 		return nil, err
 	}
 
 	s := cryptobyte.String(rawContent)
 	var content PrivateMessageContent
-	if err := content.Unmarshal(&s, msg.contentType); err != nil {
+	if err := content.Unmarshal(&s, msg.ContentType); err != nil {
 		return nil, err
 	}
 
@@ -653,56 +653,56 @@ func DerivePrivateMessageKeyAndNonce(cs CipherSuite, secret RatchetSecret, reuse
 
 func (msg *PrivateMessage) AuthenticatedContent(senderData *SenderData, content *PrivateMessageContent) *AuthenticatedContent {
 	return &AuthenticatedContent{
-		wireFormat: WireFormatMLSPrivateMessage,
-		content: FramedContent{
-			groupID: msg.groupID,
-			epoch:   msg.epoch,
-			sender: Sender{
-				senderType: senderTypeMember,
-				leafIndex:  senderData.leafIndex,
+		WireFormat: WireFormatMLSPrivateMessage,
+		Content: FramedContent{
+			GroupID: msg.GroupID,
+			Epoch:   msg.Epoch,
+			Sender: Sender{
+				SenderType: senderTypeMember,
+				LeafIndex:  senderData.LeafIndex,
 			},
-			authenticatedData: msg.authenticatedData,
-			contentType:       msg.contentType,
-			applicationData:   content.applicationData,
-			proposal:          content.proposal,
-			commit:            content.commit,
+			AuthenticatedData: msg.AuthenticatedData,
+			ContentType:       msg.ContentType,
+			ApplicationData:   content.ApplicationData,
+			Proposal:          content.Proposal,
+			Commit:            content.Commit,
 		},
-		auth: content.auth,
+		Auth: content.Auth,
 	}
 }
 
-type senderDataAAD struct {
-	groupID     GroupID
-	epoch       uint64
-	contentType contentType
+type SenderDataAAD struct {
+	GroupID     GroupID
+	Epoch       uint64
+	ContentType contentType
 }
 
-func (aad *senderDataAAD) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(aad.groupID))
-	b.AddUint64(aad.epoch)
-	aad.contentType.marshal(b)
+func (aad *SenderDataAAD) Marshal(b *cryptobyte.Builder) {
+	WriteOpaqueVec(b, []byte(aad.GroupID))
+	b.AddUint64(aad.Epoch)
+	aad.ContentType.marshal(b)
 }
 
-type privateContentAAD struct {
-	groupID           GroupID
-	epoch             uint64
-	contentType       contentType
-	authenticatedData []byte
+type PrivateContentAAD struct {
+	GroupID           GroupID
+	Epoch             uint64
+	ContentType       contentType
+	AuthenticatedData []byte
 }
 
-func (aad *privateContentAAD) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(aad.groupID))
-	b.AddUint64(aad.epoch)
-	aad.contentType.marshal(b)
-	WriteOpaqueVec(b, aad.authenticatedData)
+func (aad *PrivateContentAAD) Marshal(b *cryptobyte.Builder) {
+	WriteOpaqueVec(b, []byte(aad.GroupID))
+	b.AddUint64(aad.Epoch)
+	aad.ContentType.marshal(b)
+	WriteOpaqueVec(b, aad.AuthenticatedData)
 }
 
 type PrivateMessageContent struct {
-	applicationData []byte    // for contentTypeApplication
-	proposal        *Proposal // for contentTypeProposal
-	commit          *Commit   // for contentTypeCommit
+	ApplicationData []byte    // for contentTypeApplication
+	Proposal        *Proposal // for contentTypeProposal
+	Commit          *Commit   // for contentTypeCommit
 
-	auth FramedContentAuthData
+	Auth FramedContentAuthData
 }
 
 func (content *PrivateMessageContent) Unmarshal(s *cryptobyte.String, ct contentType) error {
@@ -711,15 +711,15 @@ func (content *PrivateMessageContent) Unmarshal(s *cryptobyte.String, ct content
 	var err error
 	switch ct {
 	case contentTypeApplication:
-		if !ReadOpaqueVec(s, &content.applicationData) {
+		if !ReadOpaqueVec(s, &content.ApplicationData) {
 			err = io.ErrUnexpectedEOF
 		}
 	case contentTypeProposal:
-		content.proposal = new(Proposal)
-		err = content.proposal.Unmarshal(s)
+		content.Proposal = new(Proposal)
+		err = content.Proposal.Unmarshal(s)
 	case contentTypeCommit:
-		content.commit = new(Commit)
-		err = content.commit.Unmarshal(s)
+		content.Commit = new(Commit)
+		err = content.Commit.Unmarshal(s)
 	default:
 		panic("unreachable")
 	}
@@ -727,21 +727,21 @@ func (content *PrivateMessageContent) Unmarshal(s *cryptobyte.String, ct content
 		return err
 	}
 
-	return content.auth.Unmarshal(s, ct)
+	return content.Auth.Unmarshal(s, ct)
 }
 
 func (content *PrivateMessageContent) Marshal(b *cryptobyte.Builder, ct contentType) {
 	switch ct {
 	case contentTypeApplication:
-		WriteOpaqueVec(b, content.applicationData)
+		WriteOpaqueVec(b, content.ApplicationData)
 	case contentTypeProposal:
-		content.proposal.Marshal(b)
+		content.Proposal.Marshal(b)
 	case contentTypeCommit:
-		content.commit.Marshal(b)
+		content.Commit.Marshal(b)
 	default:
 		panic("unreachable")
 	}
-	content.auth.Marshal(b, ct)
+	content.Auth.Marshal(b, ct)
 }
 
 func EncryptPrivateMessageContent(cs CipherSuite, signKey []byte, secret RatchetSecret, content *FramedContent, ctx *GroupContext, reuseGuard [4]byte) ([]byte, error) {
@@ -751,13 +751,13 @@ func EncryptPrivateMessageContent(cs CipherSuite, signKey []byte, secret Ratchet
 	}
 
 	privContent := PrivateMessageContent{
-		applicationData: content.applicationData,
-		proposal:        content.proposal,
-		commit:          content.commit,
-		auth:            authContent.auth,
+		ApplicationData: content.ApplicationData,
+		Proposal:        content.Proposal,
+		Commit:          content.Commit,
+		Auth:            authContent.Auth,
 	}
 	var b cryptobyte.Builder
-	privContent.Marshal(&b, content.contentType)
+	privContent.Marshal(&b, content.ContentType)
 	plaintext, err := b.Bytes()
 	if err != nil {
 		return nil, err
@@ -768,18 +768,18 @@ func EncryptPrivateMessageContent(cs CipherSuite, signKey []byte, secret Ratchet
 		return nil, err
 	}
 
-	aad := privateContentAAD{
-		groupID:           content.groupID,
-		epoch:             content.epoch,
-		contentType:       content.contentType,
-		authenticatedData: content.authenticatedData,
+	aad := PrivateContentAAD{
+		GroupID:           content.GroupID,
+		Epoch:             content.Epoch,
+		ContentType:       content.ContentType,
+		AuthenticatedData: content.AuthenticatedData,
 	}
 	rawAAD, err := Marshal(&aad)
 	if err != nil {
 		return nil, err
 	}
 
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	cipher, err := aead.New(key)
 	if err != nil {
 		return nil, err
@@ -798,17 +798,17 @@ func EncryptSenderData(cs CipherSuite, senderDataSecret []byte, senderData *Send
 		return nil, err
 	}
 
-	aad := senderDataAAD{
-		groupID:     content.groupID,
-		epoch:       content.epoch,
-		contentType: content.contentType,
+	aad := SenderDataAAD{
+		GroupID:     content.GroupID,
+		Epoch:       content.Epoch,
+		ContentType: content.ContentType,
 	}
 	rawAAD, err := Marshal(&aad)
 	if err != nil {
 		return nil, err
 	}
 
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	cipher, err := aead.New(key)
 	if err != nil {
 		return nil, err
@@ -823,49 +823,49 @@ func EncryptSenderData(cs CipherSuite, senderDataSecret []byte, senderData *Send
 }
 
 type SenderData struct {
-	leafIndex  leafIndex
-	generation uint32
-	reuseGuard [4]byte
+	LeafIndex  LeafIndex
+	Generation uint32
+	ReuseGuard [4]byte
 }
 
-func NewSenderData(leafIndex leafIndex, generation uint32) (*SenderData, error) {
+func NewSenderData(leafIndex LeafIndex, generation uint32) (*SenderData, error) {
 	data := SenderData{
-		leafIndex:  leafIndex,
-		generation: generation,
+		LeafIndex:  leafIndex,
+		Generation: generation,
 	}
-	if _, err := rand.Read(data.reuseGuard[:]); err != nil {
+	if _, err := rand.Read(data.ReuseGuard[:]); err != nil {
 		return nil, err
 	}
 	return &data, nil
 }
 
 func (data *SenderData) Unmarshal(s *cryptobyte.String) error {
-	if !s.ReadUint32((*uint32)(&data.leafIndex)) || !s.ReadUint32(&data.generation) || !s.CopyBytes(data.reuseGuard[:]) {
+	if !s.ReadUint32((*uint32)(&data.LeafIndex)) || !s.ReadUint32(&data.Generation) || !s.CopyBytes(data.ReuseGuard[:]) {
 		return io.ErrUnexpectedEOF
 	}
 	return nil
 }
 
 func (data *SenderData) Marshal(b *cryptobyte.Builder) {
-	b.AddUint32(uint32(data.leafIndex))
-	b.AddUint32(data.generation)
-	b.AddBytes(data.reuseGuard[:])
+	b.AddUint32(uint32(data.LeafIndex))
+	b.AddUint32(data.Generation)
+	b.AddBytes(data.ReuseGuard[:])
 }
 
 func ExpandSenderDataKey(cs CipherSuite, senderDataSecret, ciphertext []byte) ([]byte, error) {
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	ciphertextSample := sampleCiphertext(cs, ciphertext)
 	return cs.ExpandWithLabel(senderDataSecret, []byte("key"), ciphertextSample, uint16(aead.KeySize()))
 }
 
 func ExpandSenderDataNonce(cs CipherSuite, senderDataSecret, ciphertext []byte) ([]byte, error) {
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	ciphertextSample := sampleCiphertext(cs, ciphertext)
 	return cs.ExpandWithLabel(senderDataSecret, []byte("nonce"), ciphertextSample, uint16(aead.NonceSize()))
 }
 
 func sampleCiphertext(cs CipherSuite, ciphertext []byte) []byte {
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 	n := kdf.ExtractSize()
 	if len(ciphertext) < n {
 		return ciphertext

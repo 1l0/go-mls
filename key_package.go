@@ -44,7 +44,7 @@ func (pkg *KeyPackage) Unmarshal(s *cryptobyte.String) error {
 	return nil
 }
 
-func (pkg *KeyPackage) marshalTBS(b *cryptobyte.Builder) {
+func (pkg *KeyPackage) MarshalTBS(b *cryptobyte.Builder) {
 	b.AddUint16(uint16(pkg.Version))
 	b.AddUint16(uint16(pkg.CipherSuite))
 	WriteOpaqueVec(b, []byte(pkg.InitKey))
@@ -53,19 +53,19 @@ func (pkg *KeyPackage) marshalTBS(b *cryptobyte.Builder) {
 }
 
 func (pkg *KeyPackage) Marshal(b *cryptobyte.Builder) {
-	pkg.marshalTBS(b)
+	pkg.MarshalTBS(b)
 	WriteOpaqueVec(b, pkg.Signature)
 }
 
-func (pkg *KeyPackage) verifySignature() bool {
+func (pkg *KeyPackage) VerifySignature() bool {
 	var b cryptobyte.Builder
-	pkg.marshalTBS(&b)
+	pkg.MarshalTBS(&b)
 	rawTBS, err := b.Bytes()
 	if err != nil {
 		return false
 	}
 
-	return pkg.CipherSuite.VerifyWithLabel(pkg.LeafNode.signatureKey, []byte("KeyPackageTBS"), rawTBS, pkg.Signature)
+	return pkg.CipherSuite.VerifyWithLabel(pkg.LeafNode.SignatureKey, []byte("KeyPackageTBS"), rawTBS, pkg.Signature)
 }
 
 // Verify performs KeyPackage verification as described in RFC 9420 section 10.1.
@@ -76,19 +76,19 @@ func (pkg *KeyPackage) Verify(ctx *GroupContext) error {
 	if pkg.CipherSuite != ctx.CipherSuite {
 		return fmt.Errorf("mls: cipher suite doesn't match group context")
 	}
-	if pkg.LeafNode.leafNodeSource != LeafNodeSourceKeyPackage {
+	if pkg.LeafNode.LeafNodeSource != LeafNodeSourceKeyPackage {
 		return fmt.Errorf("mls: key package contains a leaf node with an invalid source")
 	}
-	if !pkg.verifySignature() {
+	if !pkg.VerifySignature() {
 		return fmt.Errorf("mls: invalid key package signature")
 	}
-	if bytes.Equal(pkg.LeafNode.encryptionKey, pkg.InitKey) {
+	if bytes.Equal(pkg.LeafNode.EncryptionKey, pkg.InitKey) {
 		return fmt.Errorf("mls: key package encryption key and init key are identical")
 	}
 	return nil
 }
 
-func (pkg *KeyPackage) GenerateRef() (keyPackageRef, error) {
+func (pkg *KeyPackage) GenerateRef() (KeyPackageRef, error) {
 	var b cryptobyte.Builder
 	pkg.Marshal(&b)
 	raw, err := b.Bytes()
@@ -96,16 +96,16 @@ func (pkg *KeyPackage) GenerateRef() (keyPackageRef, error) {
 		return nil, err
 	}
 
-	hash, err := pkg.CipherSuite.refHash([]byte("MLS 1.0 KeyPackage Reference"), raw)
+	hash, err := pkg.CipherSuite.RefHash([]byte("MLS 1.0 KeyPackage Reference"), raw)
 	if err != nil {
 		return nil, err
 	}
 
-	return keyPackageRef(hash), nil
+	return KeyPackageRef(hash), nil
 }
 
-type keyPackageRef []byte
+type KeyPackageRef []byte
 
-func (ref keyPackageRef) Equal(other keyPackageRef) bool {
+func (ref KeyPackageRef) Equal(other KeyPackageRef) bool {
 	return bytes.Equal([]byte(ref), []byte(other))
 }

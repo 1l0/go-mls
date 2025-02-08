@@ -55,7 +55,7 @@ func (ctx *GroupContext) Marshal(b *cryptobyte.Builder) {
 
 func (ctx *GroupContext) ExtractJoinerSecret(prevInitSecret, commitSecret []byte) ([]byte, error) {
 	cs := ctx.CipherSuite
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 
 	extracted := kdf.Extract(commitSecret, prevInitSecret)
 
@@ -68,7 +68,7 @@ func (ctx *GroupContext) ExtractJoinerSecret(prevInitSecret, commitSecret []byte
 
 func (ctx *GroupContext) ExtractEpochSecret(joinerSecret, pskSecret []byte) ([]byte, error) {
 	cs := ctx.CipherSuite
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 
 	// TODO de-duplicate with extractWelcomeSecret
 	if pskSecret == nil {
@@ -84,7 +84,7 @@ func (ctx *GroupContext) ExtractEpochSecret(joinerSecret, pskSecret []byte) ([]b
 }
 
 func ExtractWelcomeSecret(cs CipherSuite, joinerSecret, pskSecret []byte) ([]byte, error) {
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 
 	if pskSecret == nil {
 		pskSecret = make([]byte, kdf.ExtractSize())
@@ -107,31 +107,31 @@ func DeriveExporter(cs CipherSuite, exporterSecret, label, context []byte, lengt
 }
 
 var (
-	secretLabelInit           = []byte("init")
-	secretLabelSenderData     = []byte("sender data")
-	secretLabelEncryption     = []byte("encryption")
-	secretLabelExporter       = []byte("exporter")
-	secretLabelExternal       = []byte("external")
-	secretLabelConfirm        = []byte("confirm")
-	secretLabelMembership     = []byte("membership")
-	secretLabelResumption     = []byte("resumption")
-	secretLabelAuthentication = []byte("authentication")
+	SecretLabelInit           = []byte("init")
+	SecretLabelSenderData     = []byte("sender data")
+	SecretLabelEncryption     = []byte("encryption")
+	SecretLabelExporter       = []byte("exporter")
+	SecretLabelExternal       = []byte("external")
+	SecretLabelConfirm        = []byte("confirm")
+	SecretLabelMembership     = []byte("membership")
+	SecretLabelResumption     = []byte("resumption")
+	SecretLabelAuthentication = []byte("authentication")
 )
 
 type ConfirmedTranscriptHashInput struct {
-	wireFormat WireFormat
-	content    FramedContent
-	signature  []byte
+	WireFormat WireFormat
+	Content    FramedContent
+	Signature  []byte
 }
 
 func (input *ConfirmedTranscriptHashInput) Marshal(b *cryptobyte.Builder) {
-	if input.content.contentType != contentTypeCommit {
+	if input.Content.ContentType != contentTypeCommit {
 		b.SetError(fmt.Errorf("mls: confirmedTranscriptHashInput can only contain contentTypeCommit"))
 		return
 	}
-	input.wireFormat.Marshal(b)
-	input.content.marshal(b)
-	WriteOpaqueVec(b, input.signature)
+	input.WireFormat.Marshal(b)
+	input.Content.marshal(b)
+	WriteOpaqueVec(b, input.Signature)
 }
 
 func (input *ConfirmedTranscriptHashInput) hash(cs CipherSuite, interimTranscriptHashBefore []byte) ([]byte, error) {
@@ -160,26 +160,26 @@ func NextInterimTranscriptHash(cs CipherSuite, confirmedTranscriptHash, confirma
 	return h.Sum(nil), nil
 }
 
-type pskType uint8
+type PSKType uint8
 
 const (
-	pskTypeExternal   pskType = 1
-	pskTypeResumption pskType = 2
+	PSKTypeExternal   PSKType = 1
+	PSKTypeResumption PSKType = 2
 )
 
-func (t *pskType) Unmarshal(s *cryptobyte.String) error {
+func (t *PSKType) Unmarshal(s *cryptobyte.String) error {
 	if !s.ReadUint8((*uint8)(t)) {
 		return io.ErrUnexpectedEOF
 	}
 	switch *t {
-	case pskTypeExternal, pskTypeResumption:
+	case PSKTypeExternal, PSKTypeResumption:
 		return nil
 	default:
 		return fmt.Errorf("mls: invalid PSK type %d", *t)
 	}
 }
 
-func (t pskType) Marshal(b *cryptobyte.Builder) {
+func (t PSKType) Marshal(b *cryptobyte.Builder) {
 	b.AddUint8(uint8(t))
 }
 
@@ -208,43 +208,43 @@ func (usage ResumptionPSKUsage) Marshal(b *cryptobyte.Builder) {
 }
 
 type PreSharedKeyID struct {
-	pskType pskType
+	PSKType PSKType
 
 	// for pskTypeExternal
-	pskID []byte
+	PSKID []byte
 
 	// for pskTypeResumption
-	usage      ResumptionPSKUsage
-	pskGroupID GroupID
-	pskEpoch   uint64
+	Usage      ResumptionPSKUsage
+	PSKGroupID GroupID
+	PSKEpoch   uint64
 
-	pskNonce []byte
+	PSKNonce []byte
 }
 
 func (id *PreSharedKeyID) Unmarshal(s *cryptobyte.String) error {
 	*id = PreSharedKeyID{}
 
-	if err := id.pskType.Unmarshal(s); err != nil {
+	if err := id.PSKType.Unmarshal(s); err != nil {
 		return err
 	}
 
-	switch id.pskType {
-	case pskTypeExternal:
-		if !ReadOpaqueVec(s, &id.pskID) {
+	switch id.PSKType {
+	case PSKTypeExternal:
+		if !ReadOpaqueVec(s, &id.PSKID) {
 			return io.ErrUnexpectedEOF
 		}
-	case pskTypeResumption:
-		if err := id.usage.Unmarshal(s); err != nil {
+	case PSKTypeResumption:
+		if err := id.Usage.Unmarshal(s); err != nil {
 			return err
 		}
-		if !ReadOpaqueVec(s, (*[]byte)(&id.pskGroupID)) || !s.ReadUint64(&id.pskEpoch) {
+		if !ReadOpaqueVec(s, (*[]byte)(&id.PSKGroupID)) || !s.ReadUint64(&id.PSKEpoch) {
 			return io.ErrUnexpectedEOF
 		}
 	default:
 		panic("unreachable")
 	}
 
-	if !ReadOpaqueVec(s, &id.pskNonce) {
+	if !ReadOpaqueVec(s, &id.PSKNonce) {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -252,18 +252,18 @@ func (id *PreSharedKeyID) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (id *PreSharedKeyID) Marshal(b *cryptobyte.Builder) {
-	id.pskType.Marshal(b)
-	switch id.pskType {
-	case pskTypeExternal:
-		WriteOpaqueVec(b, id.pskID)
-	case pskTypeResumption:
-		id.usage.Marshal(b)
-		WriteOpaqueVec(b, []byte(id.pskGroupID))
-		b.AddUint64(id.pskEpoch)
+	id.PSKType.Marshal(b)
+	switch id.PSKType {
+	case PSKTypeExternal:
+		WriteOpaqueVec(b, id.PSKID)
+	case PSKTypeResumption:
+		id.Usage.Marshal(b)
+		WriteOpaqueVec(b, []byte(id.PSKGroupID))
+		b.AddUint64(id.PSKEpoch)
 	default:
 		panic("unreachable")
 	}
-	WriteOpaqueVec(b, id.pskNonce)
+	WriteOpaqueVec(b, id.PSKNonce)
 }
 
 func ExtractPSKSecret(cs CipherSuite, pskIDs []PreSharedKeyID, psks [][]byte) ([]byte, error) {
@@ -271,7 +271,7 @@ func ExtractPSKSecret(cs CipherSuite, pskIDs []PreSharedKeyID, psks [][]byte) ([
 		return nil, fmt.Errorf("mls: got %v PSK IDs and %v PSKs, want same number", len(pskIDs), len(psks))
 	}
 
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 	zero := make([]byte, kdf.ExtractSize())
 
 	pskSecret := zero
@@ -279,9 +279,9 @@ func ExtractPSKSecret(cs CipherSuite, pskIDs []PreSharedKeyID, psks [][]byte) ([
 		pskExtracted := kdf.Extract(psks[i], zero)
 
 		pskLabel := PSKLabel{
-			id:    pskIDs[i],
-			index: uint16(i),
-			count: uint16(len(pskIDs)),
+			ID:    pskIDs[i],
+			Index: uint16(i),
+			Count: uint16(len(pskIDs)),
 		}
 		rawPSKLabel, err := Marshal(&pskLabel)
 		if err != nil {
@@ -300,13 +300,13 @@ func ExtractPSKSecret(cs CipherSuite, pskIDs []PreSharedKeyID, psks [][]byte) ([
 }
 
 type PSKLabel struct {
-	id    PreSharedKeyID
-	index uint16
-	count uint16
+	ID    PreSharedKeyID
+	Index uint16
+	Count uint16
 }
 
 func (label *PSKLabel) Marshal(b *cryptobyte.Builder) {
-	label.id.Marshal(b)
-	b.AddUint16(label.index)
-	b.AddUint16(label.count)
+	label.ID.Marshal(b)
+	b.AddUint16(label.Index)
+	b.AddUint16(label.Count)
 }

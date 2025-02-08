@@ -112,11 +112,11 @@ func (x NodeIndex) IsLeaf() bool {
 }
 
 // LeafIndex returns the index of the leaf from a node index.
-func (x NodeIndex) LeafIndex() (leafIndex, bool) {
+func (x NodeIndex) LeafIndex() (LeafIndex, bool) {
 	if !x.IsLeaf() {
 		return 0, false
 	}
-	return leafIndex(x) >> 1, true
+	return LeafIndex(x) >> 1, true
 }
 
 // Left returns the index of the Left child for an intermediate node index.
@@ -184,10 +184,10 @@ func CommonAncestor(x, y NodeIndex) NodeIndex {
 	return (xn << k) + (1 << (k - 1)) - 1
 }
 
-type leafIndex uint32
+type LeafIndex uint32
 
 // NodeIndex returns the index of the node from a leaf index.
-func (li leafIndex) NodeIndex() NodeIndex {
+func (li LeafIndex) NodeIndex() NodeIndex {
 	return NodeIndex(2 * li)
 }
 
@@ -204,6 +204,6 @@ func Log2(x uint32) uint32 {
 	return k - 1
 }
 
-func isPowerOf2(x uint32) bool {
+func IsPowerOf2(x uint32) bool {
 	return x != 0 && x&(x-1) == 0
 }

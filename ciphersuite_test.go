@@ -23,7 +23,7 @@ type refHashTest struct {
 }
 
 func testRefHash(t *testing.T, cs CipherSuite, tc *refHashTest) {
-	out, err := cs.refHash([]byte(tc.Label), []byte(tc.Value))
+	out, err := cs.RefHash([]byte(tc.Label), []byte(tc.Value))
 	if err != nil {
 		t.Fatal(err)
 	}

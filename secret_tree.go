@@ -40,7 +40,7 @@ func (tree SecretTree) DeriveChildren(cs CipherSuite, x NodeIndex) error {
 	}
 
 	parentSecret := tree.Get(x)
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 	nh := uint16(kdf.ExtractSize())
 	leftSecret, err := cs.ExpandWithLabel(parentSecret, []byte("tree"), []byte("left"), nh)
 	if err != nil {
@@ -78,34 +78,34 @@ func (tree SecretTree) Set(ni NodeIndex, secret []byte) {
 
 // DeriveRatchetRoot derives the root of a ratchet for a tree node.
 func (tree SecretTree) DeriveRatchetRoot(cs CipherSuite, ni NodeIndex, label RatchetLabel) (RatchetSecret, error) {
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 	nh := uint16(kdf.ExtractSize())
 	root, err := cs.ExpandWithLabel(tree.Get(ni), []byte(label), nil, nh)
 	return RatchetSecret{root, 0}, err
 }
 
 type RatchetSecret struct {
-	secret     []byte
-	generation uint32
+	Secret     []byte
+	Generation uint32
 }
 
 func (secret RatchetSecret) DeriveNonce(cs CipherSuite) ([]byte, error) {
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	nn := uint16(aead.NonceSize())
-	return DeriveTreeSecret(cs, secret.secret, []byte("nonce"), secret.generation, nn)
+	return DeriveTreeSecret(cs, secret.Secret, []byte("nonce"), secret.Generation, nn)
 }
 
 func (secret RatchetSecret) DeriveKey(cs CipherSuite) ([]byte, error) {
-	_, _, aead := cs.hpke().Params()
+	_, _, aead := cs.HPKE().Params()
 	nk := uint16(aead.KeySize())
-	return DeriveTreeSecret(cs, secret.secret, []byte("key"), secret.generation, nk)
+	return DeriveTreeSecret(cs, secret.Secret, []byte("key"), secret.Generation, nk)
 }
 
 func (secret RatchetSecret) DeriveNext(cs CipherSuite) (RatchetSecret, error) {
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 	nh := uint16(kdf.ExtractSize())
-	next, err := DeriveTreeSecret(cs, secret.secret, []byte("secret"), secret.generation, nh)
-	return RatchetSecret{next, secret.generation + 1}, err
+	next, err := DeriveTreeSecret(cs, secret.Secret, []byte("secret"), secret.Generation, nh)
+	return RatchetSecret{next, secret.Generation + 1}, err
 }
 
 func DeriveTreeSecret(cs CipherSuite, secret, label []byte, generation uint32, length uint16) ([]byte, error) {

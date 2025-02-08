@@ -35,7 +35,7 @@ type passiveClientTest struct {
 type pendingProposal struct {
 	ref      ProposalRef
 	proposal *Proposal
-	sender   leafIndex
+	sender   LeafIndex
 }
 
 func testPassiveClient(t *testing.T, tc *passiveClientTest) {
@@ -46,7 +46,7 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 
 	// TODO: drop the seed size check, see:
 	// https://github.com/cloudflare/circl/issues/486
-	kem, kdf, _ := cs.hpke().Params()
+	kem, kdf, _ := cs.HPKE().Params()
 	if kem.Scheme().SeedSize() != kdf.ExtractSize() {
 		t.Skip("TODO: kem.Scheme().SeedSize() != kdf.ExtractSize()")
 	}
@@ -55,27 +55,27 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 	if err != nil {
 		t.Fatalf("unmarshal(welcome) = %v", err)
 	}
-	welcome := msg.welcome
-	if welcome.cipherSuite != cs {
-		t.Fatalf("welcome.cipherSuite = %v, want %v", welcome.cipherSuite, cs)
+	welcome := msg.Welcome
+	if welcome.CipherSuite != cs {
+		t.Fatalf("welcome.cipherSuite = %v, want %v", welcome.CipherSuite, cs)
 	}
 
 	msg, err = unmarshalMLSMessage(tc.KeyPackage, WireFormatMLSKeyPackage)
 	if err != nil {
 		t.Fatalf("unmarshal(keyPackage) = %v", err)
 	}
-	keyPkg := msg.keyPackage
-	if keyPkg.CipherSuite != welcome.cipherSuite {
-		t.Fatalf("keyPkg.cipherSuite = %v, want %v", keyPkg.CipherSuite, welcome.cipherSuite)
+	keyPkg := msg.KeyPackage
+	if keyPkg.CipherSuite != welcome.CipherSuite {
+		t.Fatalf("keyPkg.cipherSuite = %v, want %v", keyPkg.CipherSuite, welcome.CipherSuite)
 	}
 
 	if err := checkEncryptionKeyPair(cs, keyPkg.InitKey, initPriv); err != nil {
 		t.Errorf("invalid init keypair: %v", err)
 	}
-	if err := checkEncryptionKeyPair(cs, keyPkg.LeafNode.encryptionKey, encryptionPriv); err != nil {
+	if err := checkEncryptionKeyPair(cs, keyPkg.LeafNode.EncryptionKey, encryptionPriv); err != nil {
 		t.Errorf("invalid encryption keypair: %v", err)
 	}
-	if err := checkSignatureKeyPair(cs, []byte(keyPkg.LeafNode.signatureKey), signaturePriv); err != nil {
+	if err := checkSignatureKeyPair(cs, []byte(keyPkg.LeafNode.SignatureKey), signaturePriv); err != nil {
 		t.Errorf("invalid signature keypair: %v", err)
 	}
 
@@ -94,37 +94,37 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 	}
 
 	var psks [][]byte
-	for _, pskID := range groupSecrets.psks {
-		if pskID.pskType != pskTypeExternal {
+	for _, pskID := range groupSecrets.PSKs {
+		if pskID.PSKType != PSKTypeExternal {
 			t.Fatalf("group secrets contain a non-external PSK ID")
 		}
 
 		found := false
 		for _, epsk := range tc.ExternalPSKs {
-			if bytes.Equal([]byte(epsk.PSKID), pskID.pskID) {
+			if bytes.Equal([]byte(epsk.PSKID), pskID.PSKID) {
 				psks = append(psks, []byte(epsk.PSK))
 				found = true
 				break
 			}
 		}
 		if !found {
-			t.Fatalf("PSK ID %v not found", pskID.pskID)
+			t.Fatalf("PSK ID %v not found", pskID.PSKID)
 		}
 	}
 
-	pskSecret, err := ExtractPSKSecret(cs, groupSecrets.psks, psks)
+	pskSecret, err := ExtractPSKSecret(cs, groupSecrets.PSKs, psks)
 	if err != nil {
 		t.Fatalf("extractPSKSecret() = %v", err)
 	}
 
-	groupInfo, err := welcome.DecryptGroupInfo(groupSecrets.joinerSecret, pskSecret)
+	groupInfo, err := welcome.DecryptGroupInfo(groupSecrets.JoinerSecret, pskSecret)
 	if err != nil {
 		t.Fatalf("welcome.decryptGroupInfo() = %v", err)
 	}
 
 	rawTree := []byte(tc.RatchetTree)
 	if rawTree == nil {
-		rawTree = FindExtensionData(groupInfo.extensions, ExtensionTypeRatchetTree)
+		rawTree = FindExtensionData(groupInfo.Extensions, ExtensionTypeRatchetTree)
 	}
 	if rawTree == nil {
 		t.Fatalf("missing ratchet tree")
@@ -135,21 +135,21 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 		t.Fatalf("unmarshal(ratchetTree) = %v", err)
 	}
 
-	signerNode := tree.GetLeaf(groupInfo.signer)
+	signerNode := tree.GetLeaf(groupInfo.Signer)
 	if signerNode == nil {
 		t.Errorf("signer node is blank")
-	} else if !groupInfo.VerifySignature(signerNode.signatureKey) {
+	} else if !groupInfo.VerifySignature(signerNode.SignatureKey) {
 		t.Errorf("groupInfo.verifySignature() failed")
 	}
-	if !groupInfo.VerifyConfirmationTag(groupSecrets.joinerSecret, pskSecret) {
+	if !groupInfo.VerifyConfirmationTag(groupSecrets.JoinerSecret, pskSecret) {
 		t.Errorf("groupInfo.verifyConfirmationTag() failed")
 	}
-	if groupInfo.groupContext.CipherSuite != keyPkg.CipherSuite {
-		t.Errorf("groupInfo.cipherSuite = %v, want %v", groupInfo.groupContext.CipherSuite, keyPkg.CipherSuite)
+	if groupInfo.GroupContext.CipherSuite != keyPkg.CipherSuite {
+		t.Errorf("groupInfo.cipherSuite = %v, want %v", groupInfo.GroupContext.CipherSuite, keyPkg.CipherSuite)
 	}
 
 	disableLifetimeCheck := func() time.Time { return time.Time{} }
-	if err := tree.VerifyIntegrity(&groupInfo.groupContext, disableLifetimeCheck); err != nil {
+	if err := tree.VerifyIntegrity(&groupInfo.GroupContext, disableLifetimeCheck); err != nil {
 		t.Errorf("tree.verifyIntegrity() = %v", err)
 	}
 
@@ -161,15 +161,15 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 	privTree := make([][]byte, len(tree))
 	privTree[int(myLeafIndex.NodeIndex())] = encryptionPriv
 
-	if groupSecrets.pathSecret != nil {
-		nodeIndex := CommonAncestor(myLeafIndex.NodeIndex(), groupInfo.signer.NodeIndex())
-		nodePriv, err := NodePrivFromPathSecret(cs, groupSecrets.pathSecret, tree.Get(nodeIndex).EncryptionKey())
+	if groupSecrets.PathSecret != nil {
+		nodeIndex := CommonAncestor(myLeafIndex.NodeIndex(), groupInfo.Signer.NodeIndex())
+		nodePriv, err := NodePrivFromPathSecret(cs, groupSecrets.PathSecret, tree.Get(nodeIndex).EncryptionKey())
 		if err != nil {
 			t.Fatalf("failed to derive node %v private key from path secret: %v", nodeIndex, err)
 		}
 		privTree[int(nodeIndex)] = nodePriv
 
-		pathSecret := groupSecrets.pathSecret
+		pathSecret := groupSecrets.PathSecret
 		for {
 			nodeIndex, ok = tree.numLeaves().Parent(nodeIndex)
 			if !ok {
@@ -191,25 +191,25 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 
 	// TODO: perform other group info verification steps
 
-	groupCtx := groupInfo.groupContext
+	groupCtx := groupInfo.GroupContext
 
-	epochSecret, err := groupCtx.ExtractEpochSecret(groupSecrets.joinerSecret, pskSecret)
+	epochSecret, err := groupCtx.ExtractEpochSecret(groupSecrets.JoinerSecret, pskSecret)
 	if err != nil {
 		t.Fatalf("groupContext.extractEpochSecret() = %v", err)
 	}
-	epochAuthenticator, err := cs.DeriveSecret(epochSecret, secretLabelAuthentication)
+	epochAuthenticator, err := cs.DeriveSecret(epochSecret, SecretLabelAuthentication)
 	if err != nil {
 		t.Errorf("deriveSecret(authentication) = %v", err)
 	} else if !bytes.Equal(epochAuthenticator, []byte(tc.InitialEpochAuthenticator)) {
 		t.Errorf("deriveSecret(authentication) = %v, want %v", epochAuthenticator, tc.InitialEpochAuthenticator)
 	}
 
-	initSecret, err := cs.DeriveSecret(epochSecret, secretLabelInit)
+	initSecret, err := cs.DeriveSecret(epochSecret, SecretLabelInit)
 	if err != nil {
 		t.Errorf("deriveSecret(init) = %v", err)
 	}
 
-	interimTranscriptHash, err := NextInterimTranscriptHash(cs, groupCtx.ConfirmedTranscriptHash, groupInfo.confirmationTag)
+	interimTranscriptHash, err := NextInterimTranscriptHash(cs, groupCtx.ConfirmedTranscriptHash, groupInfo.ConfirmationTag)
 	if err != nil {
 		t.Errorf("nextInterimTranscriptHash() = %v", err)
 	}
@@ -222,19 +222,19 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 			var msg MLSMessage
 			if err := Unmarshal([]byte(rawProposal), &msg); err != nil {
 				t.Fatalf("unmarshal(proposal) = %v", err)
-			} else if msg.wireFormat != WireFormatMLSPublicMessage {
-				t.Fatalf("TODO: wireFormat = %v", msg.wireFormat)
+			} else if msg.WireFormat != WireFormatMLSPublicMessage {
+				t.Fatalf("TODO: wireFormat = %v", msg.WireFormat)
 			}
-			pubMsg := msg.publicMessage
+			pubMsg := msg.PublicMessage
 
 			// TODO: public message checks
 
 			authContent := pubMsg.AuthenticatedContent()
 
-			if authContent.content.contentType != contentTypeProposal {
-				t.Errorf("contentType = %v, want %v", authContent.content.contentType, contentTypeProposal)
+			if authContent.Content.ContentType != contentTypeProposal {
+				t.Errorf("contentType = %v, want %v", authContent.Content.ContentType, contentTypeProposal)
 			}
-			proposal := authContent.content.proposal
+			proposal := authContent.Content.Proposal
 
 			ref, err := authContent.GenerateProposalRef(cs)
 			if err != nil {
@@ -244,26 +244,26 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 			pendingProposals = append(pendingProposals, pendingProposal{
 				ref:      ref,
 				proposal: proposal,
-				sender:   pubMsg.content.sender.leafIndex,
+				sender:   pubMsg.Content.Sender.LeafIndex,
 			})
 		}
 
 		var msg MLSMessage
 		if err := Unmarshal([]byte(epoch.Commit), &msg); err != nil {
 			t.Fatalf("unmarshal(commit) = %v", err)
-		} else if msg.wireFormat != WireFormatMLSPublicMessage {
-			t.Fatalf("TODO: wireFormat = %v", msg.wireFormat)
+		} else if msg.WireFormat != WireFormatMLSPublicMessage {
+			t.Fatalf("TODO: wireFormat = %v", msg.WireFormat)
 		}
-		pubMsg := msg.publicMessage
+		pubMsg := msg.PublicMessage
 
-		if pubMsg.content.epoch != groupCtx.Epoch {
-			t.Errorf("epoch = %v, want %v", pubMsg.content.epoch, groupCtx.Epoch)
+		if pubMsg.Content.Epoch != groupCtx.Epoch {
+			t.Errorf("epoch = %v, want %v", pubMsg.Content.Epoch, groupCtx.Epoch)
 		}
 
-		if pubMsg.content.sender.senderType != senderTypeMember {
-			t.Fatalf("TODO: senderType = %v", pubMsg.content.sender.senderType)
+		if pubMsg.Content.Sender.SenderType != senderTypeMember {
+			t.Fatalf("TODO: senderType = %v", pubMsg.Content.Sender.SenderType)
 		}
-		senderLeafIndex := pubMsg.content.sender.leafIndex
+		senderLeafIndex := pubMsg.Content.Sender.LeafIndex
 		// TODO: check tree length
 		senderNode := tree.GetLeaf(senderLeafIndex)
 		if senderNode == nil {
@@ -271,35 +271,35 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 		}
 
 		authContent := pubMsg.AuthenticatedContent()
-		if !authContent.VerifySignature(cs, []byte(senderNode.signatureKey), &groupCtx) {
+		if !authContent.VerifySignature(cs, []byte(senderNode.SignatureKey), &groupCtx) {
 			t.Errorf("verifySignature() failed")
 		}
 
-		membershipKey, err := cs.DeriveSecret(epochSecret, secretLabelMembership)
+		membershipKey, err := cs.DeriveSecret(epochSecret, SecretLabelMembership)
 		if err != nil {
 			t.Errorf("deriveSecret(membership) = %v", err)
 		} else if !pubMsg.VerifyMembershipTag(cs, membershipKey, &groupCtx) {
 			t.Errorf("publicMessage.verifyMembershipTag() failed")
 		}
 
-		if authContent.content.contentType != contentTypeCommit {
-			t.Errorf("contentType = %v, want %v", authContent.content.contentType, contentTypeCommit)
+		if authContent.Content.ContentType != contentTypeCommit {
+			t.Errorf("contentType = %v, want %v", authContent.Content.ContentType, contentTypeCommit)
 		}
-		commit := authContent.content.commit
+		commit := authContent.Content.Commit
 
 		var (
 			proposals []Proposal
-			senders   []leafIndex
+			senders   []LeafIndex
 		)
-		for _, propOrRef := range commit.proposals {
-			switch propOrRef.typ {
+		for _, propOrRef := range commit.Proposals {
+			switch propOrRef.Type {
 			case ProposalOrRefTypeProposal:
-				proposals = append(proposals, *propOrRef.proposal)
+				proposals = append(proposals, *propOrRef.Proposal)
 				senders = append(senders, senderLeafIndex)
 			case ProposalOrRefTypeReference:
 				var found bool
 				for _, pp := range pendingProposals {
-					if pp.ref.Equal(propOrRef.reference) {
+					if pp.ref.Equal(propOrRef.Reference) {
 						found = true
 						proposals = append(proposals, *pp.proposal)
 						senders = append(senders, pp.sender)
@@ -307,7 +307,7 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 					}
 				}
 				if !found {
-					t.Fatalf("cannot find proposal reference %v", propOrRef.reference)
+					t.Fatalf("cannot find proposal reference %v", propOrRef.Reference)
 				}
 			}
 		}
@@ -328,7 +328,7 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 			}
 		}
 
-		if ProposalListNeedsPath(proposals) && commit.path == nil {
+		if ProposalListNeedsPath(proposals) && commit.Path == nil {
 			t.Errorf("proposal list needs update path")
 		}
 
@@ -337,18 +337,18 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 			psks   [][]byte
 		)
 		for _, prop := range proposals {
-			if prop.proposalType != ProposalTypePSK {
+			if prop.ProposalType != ProposalTypePSK {
 				continue
 			}
 
-			pskID := prop.preSharedKey.psk
-			if pskID.pskType != pskTypeExternal {
-				t.Skipf("TODO: PSK ID type = %v", pskID.pskType)
+			pskID := prop.PreSharedKey.PSK
+			if pskID.PSKType != PSKTypeExternal {
+				t.Skipf("TODO: PSK ID type = %v", pskID.PSKType)
 			}
 
 			found := false
 			for _, epsk := range tc.ExternalPSKs {
-				if bytes.Equal([]byte(epsk.PSKID), pskID.pskID) {
+				if bytes.Equal([]byte(epsk.PSKID), pskID.PSKID) {
 					pskIDs = append(pskIDs, pskID)
 					psks = append(psks, []byte(epsk.PSK))
 					found = true
@@ -356,45 +356,45 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 				}
 			}
 			if !found {
-				t.Fatalf("PSK ID %v not found", pskID.pskID)
+				t.Fatalf("PSK ID %v not found", pskID.PSKID)
 			}
 		}
 
 		newGroupCtx := groupCtx
 		newGroupCtx.Epoch++
 
-		_, kdf, _ := cs.hpke().Params()
+		_, kdf, _ := cs.HPKE().Params()
 		commitSecret := make([]byte, kdf.ExtractSize())
-		if commit.path != nil {
-			if commit.path.leafNode.leafNodeSource != LeafNodeSourceCommit {
+		if commit.Path != nil {
+			if commit.Path.LeafNode.LeafNodeSource != LeafNodeSourceCommit {
 				t.Errorf("commit path leaf node source must be commit")
 			}
 
 			// The same signature key can be re-used, but the encryption key
 			// must change
 			signatureKeys, encryptionKeys := newTree.Keys()
-			delete(signatureKeys, string(senderNode.signatureKey))
-			err := commit.path.leafNode.Verify(&LeafNodeVerifyOptions{
-				cipherSuite:    cs,
-				groupID:        groupCtx.GroupID,
-				leafIndex:      senderLeafIndex,
-				supportedCreds: newTree.SupportedCreds(),
-				signatureKeys:  signatureKeys,
-				encryptionKeys: encryptionKeys,
-				now:            func() time.Time { return time.Time{} },
+			delete(signatureKeys, string(senderNode.SignatureKey))
+			err := commit.Path.LeafNode.Verify(&LeafNodeVerifyOptions{
+				CipherSuite:    cs,
+				GroupID:        groupCtx.GroupID,
+				LeafIndex:      senderLeafIndex,
+				SupportedCreds: newTree.SupportedCreds(),
+				SignatureKeys:  signatureKeys,
+				EncryptionKeys: encryptionKeys,
+				Now:            func() time.Time { return time.Time{} },
 			})
 			if err != nil {
 				t.Errorf("leafNode.verify() = %v", err)
 			}
 
-			for _, updateNode := range commit.path.nodes {
-				if _, dup := encryptionKeys[string(updateNode.encryptionKey)]; dup {
+			for _, updateNode := range commit.Path.Nodes {
+				if _, dup := encryptionKeys[string(updateNode.EncryptionKey)]; dup {
 					t.Errorf("encryption key in update path already used in ratchet tree")
 					break
 				}
 			}
 
-			if err := newTree.MergeUpdatePath(cs, senderLeafIndex, commit.path); err != nil {
+			if err := newTree.MergeUpdatePath(cs, senderLeafIndex, commit.Path); err != nil {
 				t.Errorf("ratchetTree.mergeUpdatePath() = %v", err)
 			}
 
@@ -405,7 +405,7 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 
 			// TODO: update group context extensions
 
-			commitSecret, err = newTree.DecryptPathSecrets(cs, &newGroupCtx, senderLeafIndex, myLeafIndex, commit.path, newPrivTree)
+			commitSecret, err = newTree.DecryptPathSecrets(cs, &newGroupCtx, senderLeafIndex, myLeafIndex, commit.Path, newPrivTree)
 			if err != nil {
 				t.Fatalf("ratchetTree.decryptPathSecrets() = %v", err)
 			}
@@ -416,7 +416,7 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 			t.Fatalf("confirmedTranscriptHashInput.hash() = %v", err)
 		}
 
-		newInterimTranscriptHash, err := NextInterimTranscriptHash(cs, newGroupCtx.ConfirmedTranscriptHash, authContent.auth.confirmationTag)
+		newInterimTranscriptHash, err := NextInterimTranscriptHash(cs, newGroupCtx.ConfirmedTranscriptHash, authContent.Auth.ConfirmationTag)
 		if err != nil {
 			t.Fatalf("nextInterimTranscriptHash() = %v", err)
 		}
@@ -435,25 +435,25 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 		if err != nil {
 			t.Fatalf("groupContext.extractEpochSecret() = %v", err)
 		}
-		epochAuthenticator, err := cs.DeriveSecret(newEpochSecret, secretLabelAuthentication)
+		epochAuthenticator, err := cs.DeriveSecret(newEpochSecret, SecretLabelAuthentication)
 		if err != nil {
 			t.Fatalf("deriveSecret(authentication) = %v", err)
 		} else if !bytes.Equal(epochAuthenticator, []byte(epoch.EpochAuthenticator)) {
 			t.Errorf("deriveSecret(authentication) = %v, want %v", epochAuthenticator, epoch.EpochAuthenticator)
 		}
 
-		newInitSecret, err := cs.DeriveSecret(newEpochSecret, secretLabelInit)
+		newInitSecret, err := cs.DeriveSecret(newEpochSecret, SecretLabelInit)
 		if err != nil {
 			t.Fatalf("deriveSecret(init) = %v", err)
 		}
 
-		confirmationKey, err := cs.DeriveSecret(newEpochSecret, secretLabelConfirm)
+		confirmationKey, err := cs.DeriveSecret(newEpochSecret, SecretLabelConfirm)
 		if err != nil {
 			t.Fatalf("deriveSecret(confirm) = %v", err)
 		}
-		confirmationTag := cs.signMAC(confirmationKey, newGroupCtx.ConfirmedTranscriptHash)
-		if !bytes.Equal(confirmationTag, authContent.auth.confirmationTag) {
-			t.Errorf("invalid confirmation tag: got %v, want %v", confirmationTag, authContent.auth.confirmationTag)
+		confirmationTag := cs.SignMAC(confirmationKey, newGroupCtx.ConfirmedTranscriptHash)
+		if !bytes.Equal(confirmationTag, authContent.Auth.ConfirmationTag) {
+			t.Errorf("invalid confirmation tag: got %v, want %v", confirmationTag, authContent.Auth.ConfirmationTag)
 		}
 
 		tree = newTree
@@ -470,7 +470,7 @@ func testPassiveClient(t *testing.T, tc *passiveClientTest) {
 // size according to the HPKE specification. See:
 // https://github.com/mlswg/mls-implementations/issues/176
 func normalizePriv(cs CipherSuite, priv []byte) []byte {
-	kem, _, _ := cs.hpke().Params()
+	kem, _, _ := cs.HPKE().Params()
 	privSize := kem.Scheme().PrivateKeySize()
 	if kem != hpke.KEM_P521_HKDF_SHA512 || len(priv) >= privSize {
 		return priv
@@ -484,8 +484,8 @@ func unmarshalMLSMessage(raw testBytes, wf WireFormat) (*MLSMessage, error) {
 	var msg MLSMessage
 	if err := Unmarshal([]byte(raw), &msg); err != nil {
 		return nil, err
-	} else if msg.wireFormat != wf {
-		return nil, fmt.Errorf("invalid wireFormat: got %v, want %v", msg.wireFormat, wf)
+	} else if msg.WireFormat != wf {
+		return nil, fmt.Errorf("invalid wireFormat: got %v, want %v", msg.WireFormat, wf)
 	}
 	return &msg, nil
 }

@@ -52,7 +52,7 @@ func testSecretTree(t *testing.T, tc *secretTreeTest) {
 	}
 
 	for i, gens := range tc.Leaves {
-		li := leafIndex(i)
+		li := LeafIndex(i)
 		t.Run(fmt.Sprintf("leaf-%v/handshake", li), func(t *testing.T) {
 			testRatchetSecret(t, tc.CipherSuite, tree, li, RatchetLabelHandshake, gens)
 		})
@@ -62,18 +62,18 @@ func testSecretTree(t *testing.T, tc *secretTreeTest) {
 	}
 }
 
-func testRatchetSecret(t *testing.T, cs CipherSuite, tree SecretTree, li leafIndex, label RatchetLabel, gens []secretTreeTestGen) {
+func testRatchetSecret(t *testing.T, cs CipherSuite, tree SecretTree, li LeafIndex, label RatchetLabel, gens []secretTreeTestGen) {
 	secret, err := tree.DeriveRatchetRoot(cs, li.NodeIndex(), label)
 	if err != nil {
 		t.Fatalf("deriveRatchetRoot() = %v", err)
 	}
 
 	for _, gen := range gens {
-		if gen.Generation < secret.generation {
+		if gen.Generation < secret.Generation {
 			panic("unreachable")
 		}
 
-		for secret.generation != gen.Generation {
+		for secret.Generation != gen.Generation {
 			secret, err = secret.DeriveNext(cs)
 			if err != nil {
 				t.Fatalf("deriveNext() = %v", err)

@@ -25,9 +25,9 @@ func testPSKSecret(t *testing.T, tc *pskSecretTest) {
 	)
 	for _, psk := range tc.PSKs {
 		pskIDs = append(pskIDs, PreSharedKeyID{
-			pskType:  pskTypeExternal,
-			pskID:    []byte(psk.PSKID),
-			pskNonce: []byte(psk.PSKNonce),
+			PSKType:  PSKTypeExternal,
+			PSKID:    []byte(psk.PSKID),
+			PSKNonce: []byte(psk.PSKNonce),
 		})
 		psks = append(psks, []byte(psk.PSK))
 	}
@@ -128,7 +128,7 @@ func testKeySchedule(t *testing.T, tc *keyScheduleTest) {
 			t.Fatalf("extractEpochSecret() = %v", err)
 		}
 
-		initSecret, err = ctx.CipherSuite.DeriveSecret(epochSecret, secretLabelInit)
+		initSecret, err = ctx.CipherSuite.DeriveSecret(epochSecret, SecretLabelInit)
 		if err != nil {
 			t.Errorf("deriveSecret(init) = %v", err)
 		} else if !bytes.Equal(initSecret, []byte(epoch.InitSecret)) {
@@ -139,13 +139,13 @@ func testKeySchedule(t *testing.T, tc *keyScheduleTest) {
 			label []byte
 			want  testBytes
 		}{
-			{secretLabelSenderData, epoch.SenderDataSecret},
-			{secretLabelEncryption, epoch.EncryptionSecret},
-			{secretLabelExporter, epoch.ExporterSecret},
-			{secretLabelExternal, epoch.ExternalSecret},
-			{secretLabelConfirm, epoch.ConfirmationKey},
-			{secretLabelMembership, epoch.MembershipKey},
-			{secretLabelResumption, epoch.ResumptionPSK},
+			{SecretLabelSenderData, epoch.SenderDataSecret},
+			{SecretLabelEncryption, epoch.EncryptionSecret},
+			{SecretLabelExporter, epoch.ExporterSecret},
+			{SecretLabelExternal, epoch.ExternalSecret},
+			{SecretLabelConfirm, epoch.ConfirmationKey},
+			{SecretLabelMembership, epoch.MembershipKey},
+			{SecretLabelResumption, epoch.ResumptionPSK},
 		}
 		for _, secret := range secrets {
 			sec, err := ctx.CipherSuite.DeriveSecret(epochSecret, secret.label)
@@ -157,7 +157,7 @@ func testKeySchedule(t *testing.T, tc *keyScheduleTest) {
 		}
 
 		externalSecret := []byte(epoch.ExternalSecret)
-		kem, kdf, _ := ctx.CipherSuite.hpke().Params()
+		kem, kdf, _ := ctx.CipherSuite.HPKE().Params()
 		// TODO: drop the seed size check, see:
 		// https://github.com/cloudflare/circl/issues/486
 		if kem.Scheme().SeedSize() == kdf.ExtractSize() {
@@ -207,11 +207,11 @@ func testTranscriptHashes(t *testing.T, tc *transcriptHashesTest) {
 	var authContent AuthenticatedContent
 	if err := Unmarshal([]byte(tc.AuthenticatedContent), &authContent); err != nil {
 		t.Fatalf("unmarshal() = %v", err)
-	} else if authContent.content.contentType != contentTypeCommit {
-		t.Fatalf("contentType = %v, want %v", authContent.content.contentType, contentTypeCommit)
+	} else if authContent.Content.ContentType != contentTypeCommit {
+		t.Fatalf("contentType = %v, want %v", authContent.Content.ContentType, contentTypeCommit)
 	}
 
-	if !authContent.auth.VerifyConfirmationTag(cs, []byte(tc.ConfirmationKey), []byte(tc.ConfirmedTranscriptHashAfter)) {
+	if !authContent.Auth.VerifyConfirmationTag(cs, []byte(tc.ConfirmationKey), []byte(tc.ConfirmedTranscriptHashAfter)) {
 		t.Errorf("verifyConfirmationTag() failed")
 	}
 
@@ -222,7 +222,7 @@ func testTranscriptHashes(t *testing.T, tc *transcriptHashesTest) {
 		t.Errorf("confirmedTranscriptHashInput.hash() = %v, want %v", confirmedTranscriptHashAfter, tc.ConfirmedTranscriptHashAfter)
 	}
 
-	interimTranscriptHashAfter, err := NextInterimTranscriptHash(cs, confirmedTranscriptHashAfter, authContent.auth.confirmationTag)
+	interimTranscriptHashAfter, err := NextInterimTranscriptHash(cs, confirmedTranscriptHashAfter, authContent.Auth.ConfirmationTag)
 	if err != nil {
 		t.Fatalf("nextInterimTranscriptHash() = %v", err)
 	} else if !bytes.Equal(interimTranscriptHashAfter, []byte(tc.InterimTranscriptHashAfter)) {

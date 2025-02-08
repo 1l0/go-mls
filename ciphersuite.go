@@ -54,15 +54,15 @@ func (cs CipherSuite) hash() crypto.Hash {
 	if !ok {
 		panic(fmt.Errorf("mls: invalid cipher suite %d", cs))
 	}
-	return desc.hash
+	return desc.Hash
 }
 
-func (cs CipherSuite) hpke() hpke.Suite {
+func (cs CipherSuite) HPKE() hpke.Suite {
 	desc, ok := cipherSuiteDescriptions[cs]
 	if !ok {
 		panic(fmt.Errorf("mls: invalid cipher suite %d", cs))
 	}
-	return desc.hpke
+	return desc.HPKE
 }
 
 func (cs CipherSuite) SignatureScheme() SignatureScheme {
@@ -70,65 +70,65 @@ func (cs CipherSuite) SignatureScheme() SignatureScheme {
 	if !ok {
 		panic(fmt.Errorf("mls: invalid cipher suite %d", cs))
 	}
-	return desc.sig
+	return desc.Sig
 }
 
 type cipherSuiteDescription struct {
-	hash crypto.Hash
-	hpke hpke.Suite
-	sig  SignatureScheme
+	Hash crypto.Hash
+	HPKE hpke.Suite
+	Sig  SignatureScheme
 }
 
 var cipherSuiteDescriptions = map[CipherSuite]cipherSuiteDescription{
 	CipherSuiteMLS_128_DHKEMX25519_AES128GCM_SHA256_Ed25519: {
-		hash: crypto.SHA256,
-		hpke: hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES128GCM),
-		sig:  ED25519SignatureScheme{},
+		Hash: crypto.SHA256,
+		HPKE: hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES128GCM),
+		Sig:  ED25519SignatureScheme{},
 	},
 	CipherSuiteMLS_128_DHKEMP256_AES128GCM_SHA256_P256: {
-		hash: crypto.SHA256,
-		hpke: hpke.NewSuite(hpke.KEM_P256_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES128GCM),
-		sig:  ECDSASignatureScheme{elliptic.P256(), crypto.SHA256},
+		Hash: crypto.SHA256,
+		HPKE: hpke.NewSuite(hpke.KEM_P256_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES128GCM),
+		Sig:  ECDSASignatureScheme{elliptic.P256(), crypto.SHA256},
 	},
 	CipherSuiteMLS_128_DHKEMX25519_CHACHA20POLY1305_SHA256_Ed25519: {
-		hash: crypto.SHA256,
-		hpke: hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_ChaCha20Poly1305),
-		sig:  ED25519SignatureScheme{},
+		Hash: crypto.SHA256,
+		HPKE: hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_ChaCha20Poly1305),
+		Sig:  ED25519SignatureScheme{},
 	},
 	CipherSuiteMLS_256_DHKEMX448_AES256GCM_SHA512_Ed448: {
-		hash: crypto.SHA512,
-		hpke: hpke.NewSuite(hpke.KEM_X448_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_AES256GCM),
-		sig:  ED448SignatureScheme{},
+		Hash: crypto.SHA512,
+		HPKE: hpke.NewSuite(hpke.KEM_X448_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_AES256GCM),
+		Sig:  ED448SignatureScheme{},
 	},
 	CipherSuiteMLS_256_DHKEMP521_AES256GCM_SHA512_P521: {
-		hash: crypto.SHA512,
-		hpke: hpke.NewSuite(hpke.KEM_P521_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_AES256GCM),
-		sig:  ECDSASignatureScheme{elliptic.P521(), crypto.SHA512},
+		Hash: crypto.SHA512,
+		HPKE: hpke.NewSuite(hpke.KEM_P521_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_AES256GCM),
+		Sig:  ECDSASignatureScheme{elliptic.P521(), crypto.SHA512},
 	},
 	CipherSuiteMLS_256_DHKEMX448_CHACHA20POLY1305_SHA512_Ed448: {
-		hash: crypto.SHA512,
-		hpke: hpke.NewSuite(hpke.KEM_X448_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_ChaCha20Poly1305),
-		sig:  ED448SignatureScheme{},
+		Hash: crypto.SHA512,
+		HPKE: hpke.NewSuite(hpke.KEM_X448_HKDF_SHA512, hpke.KDF_HKDF_SHA512, hpke.AEAD_ChaCha20Poly1305),
+		Sig:  ED448SignatureScheme{},
 	},
 	CipherSuiteMLS_256_DHKEMP384_AES256GCM_SHA384_P384: {
-		hash: crypto.SHA384,
-		hpke: hpke.NewSuite(hpke.KEM_P384_HKDF_SHA384, hpke.KDF_HKDF_SHA384, hpke.AEAD_AES256GCM),
-		sig:  ECDSASignatureScheme{elliptic.P384(), crypto.SHA384},
+		Hash: crypto.SHA384,
+		HPKE: hpke.NewSuite(hpke.KEM_P384_HKDF_SHA384, hpke.KDF_HKDF_SHA384, hpke.AEAD_AES256GCM),
+		Sig:  ECDSASignatureScheme{elliptic.P384(), crypto.SHA384},
 	},
 }
 
-func (cs CipherSuite) signMAC(key, message []byte) []byte {
+func (cs CipherSuite) SignMAC(key, message []byte) []byte {
 	// All cipher suites use HMAC
 	mac := hmac.New(cs.hash().New, key)
 	mac.Write(message)
 	return mac.Sum(nil)
 }
 
-func (cs CipherSuite) verifyMAC(key, message, tag []byte) bool {
-	return hmac.Equal(tag, cs.signMAC(key, message))
+func (cs CipherSuite) VerifyMAC(key, message, tag []byte) bool {
+	return hmac.Equal(tag, cs.SignMAC(key, message))
 }
 
-func (cs CipherSuite) refHash(label, value []byte) ([]byte, error) {
+func (cs CipherSuite) RefHash(label, value []byte) ([]byte, error) {
 	var b cryptobyte.Builder
 	WriteOpaqueVec(&b, label)
 	WriteOpaqueVec(&b, value)
@@ -154,12 +154,12 @@ func (cs CipherSuite) ExpandWithLabel(secret, label, context []byte, length uint
 		return nil, err
 	}
 
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 	return kdf.Expand(secret, kdfLabel, uint(length)), nil
 }
 
 func (cs CipherSuite) DeriveSecret(secret, label []byte) ([]byte, error) {
-	_, kdf, _ := cs.hpke().Params()
+	_, kdf, _ := cs.HPKE().Params()
 	return cs.ExpandWithLabel(secret, label, nil, uint16(kdf.ExtractSize()))
 }
 
@@ -187,7 +187,7 @@ func (cs CipherSuite) EncryptWithLabel(publicKey, label, context, plaintext []by
 		return nil, nil, err
 	}
 
-	hpke := cs.hpke()
+	hpke := cs.HPKE()
 	kem, _, _ := hpke.Params()
 	pub, err := kem.Scheme().UnmarshalBinaryPublicKey(publicKey)
 	if err != nil {
@@ -214,7 +214,7 @@ func (cs CipherSuite) DecryptWithLabel(privateKey, label, context, kemOutput, ci
 		return nil, err
 	}
 
-	hpke := cs.hpke()
+	hpke := cs.HPKE()
 	kem, _, _ := hpke.Params()
 	priv, err := kem.Scheme().UnmarshalBinaryPrivateKey(privateKey)
 	if err != nil {

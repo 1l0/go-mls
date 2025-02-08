@@ -38,136 +38,136 @@ func (t ProposalType) Marshal(b *cryptobyte.Builder) {
 }
 
 type Proposal struct {
-	proposalType           ProposalType
-	add                    *Add                    // for proposalTypeAdd
-	update                 *Update                 // for proposalTypeUpdate
-	remove                 *Remove                 // for proposalTypeRemove
-	preSharedKey           *PreSharedKey           // for proposalTypePSK
-	reInit                 *ReInit                 // for proposalTypeReinit
-	externalInit           *ExternalInit           // for proposalTypeExternalInit
-	groupContextExtensions *GroupContextExtensions // for proposalTypeGroupContextExtensions
+	ProposalType           ProposalType
+	Add                    *Add                    // for proposalTypeAdd
+	Update                 *Update                 // for proposalTypeUpdate
+	Remove                 *Remove                 // for proposalTypeRemove
+	PreSharedKey           *PreSharedKey           // for proposalTypePSK
+	ReInit                 *ReInit                 // for proposalTypeReinit
+	ExternalInit           *ExternalInit           // for proposalTypeExternalInit
+	GroupContextExtensions *GroupContextExtensions // for proposalTypeGroupContextExtensions
 }
 
 func (prop *Proposal) Unmarshal(s *cryptobyte.String) error {
 	*prop = Proposal{}
-	if err := prop.proposalType.Unmarshal(s); err != nil {
+	if err := prop.ProposalType.Unmarshal(s); err != nil {
 		return err
 	}
-	switch prop.proposalType {
+	switch prop.ProposalType {
 	case ProposalTypeAdd:
-		prop.add = new(Add)
-		return prop.add.Unmarshal(s)
+		prop.Add = new(Add)
+		return prop.Add.Unmarshal(s)
 	case ProposalTypeUpdate:
-		prop.update = new(Update)
-		return prop.update.Unmarshal(s)
+		prop.Update = new(Update)
+		return prop.Update.Unmarshal(s)
 	case ProposalTypeRemove:
-		prop.remove = new(Remove)
-		return prop.remove.Unmarshal(s)
+		prop.Remove = new(Remove)
+		return prop.Remove.Unmarshal(s)
 	case ProposalTypePSK:
-		prop.preSharedKey = new(PreSharedKey)
-		return prop.preSharedKey.Unmarshal(s)
+		prop.PreSharedKey = new(PreSharedKey)
+		return prop.PreSharedKey.Unmarshal(s)
 	case ProposalTypeReinit:
-		prop.reInit = new(ReInit)
-		return prop.reInit.Unmarshal(s)
+		prop.ReInit = new(ReInit)
+		return prop.ReInit.Unmarshal(s)
 	case ProposalTypeExternalInit:
-		prop.externalInit = new(ExternalInit)
-		return prop.externalInit.Unmarshal(s)
+		prop.ExternalInit = new(ExternalInit)
+		return prop.ExternalInit.Unmarshal(s)
 	case ProposalTypeGroupContextExtensions:
-		prop.groupContextExtensions = new(GroupContextExtensions)
-		return prop.groupContextExtensions.Unmarshal(s)
+		prop.GroupContextExtensions = new(GroupContextExtensions)
+		return prop.GroupContextExtensions.Unmarshal(s)
 	default:
 		panic("unreachable")
 	}
 }
 
 func (prop *Proposal) Marshal(b *cryptobyte.Builder) {
-	prop.proposalType.Marshal(b)
-	switch prop.proposalType {
+	prop.ProposalType.Marshal(b)
+	switch prop.ProposalType {
 	case ProposalTypeAdd:
-		prop.add.Marshal(b)
+		prop.Add.Marshal(b)
 	case ProposalTypeUpdate:
-		prop.update.Marshal(b)
+		prop.Update.Marshal(b)
 	case ProposalTypeRemove:
-		prop.remove.Marshal(b)
+		prop.Remove.Marshal(b)
 	case ProposalTypePSK:
-		prop.preSharedKey.Marshal(b)
+		prop.PreSharedKey.Marshal(b)
 	case ProposalTypeReinit:
-		prop.reInit.Marshal(b)
+		prop.ReInit.Marshal(b)
 	case ProposalTypeExternalInit:
-		prop.externalInit.Marshal(b)
+		prop.ExternalInit.Marshal(b)
 	case ProposalTypeGroupContextExtensions:
-		prop.groupContextExtensions.Marshal(b)
+		prop.GroupContextExtensions.Marshal(b)
 	default:
 		panic("unreachable")
 	}
 }
 
 type Add struct {
-	keyPackage KeyPackage
+	KeyPackage KeyPackage
 }
 
 func (a *Add) Unmarshal(s *cryptobyte.String) error {
 	*a = Add{}
-	return a.keyPackage.Unmarshal(s)
+	return a.KeyPackage.Unmarshal(s)
 }
 
 func (a *Add) Marshal(b *cryptobyte.Builder) {
-	a.keyPackage.Marshal(b)
+	a.KeyPackage.Marshal(b)
 }
 
 type Update struct {
-	leafNode LeafNode
+	LeafNode LeafNode
 }
 
 func (upd *Update) Unmarshal(s *cryptobyte.String) error {
 	*upd = Update{}
-	return upd.leafNode.Unmarshal(s)
+	return upd.LeafNode.Unmarshal(s)
 }
 
 func (upd *Update) Marshal(b *cryptobyte.Builder) {
-	upd.leafNode.Marshal(b)
+	upd.LeafNode.Marshal(b)
 }
 
 type Remove struct {
-	removed leafIndex
+	Removed LeafIndex
 }
 
 func (rm *Remove) Unmarshal(s *cryptobyte.String) error {
 	*rm = Remove{}
-	if !s.ReadUint32((*uint32)(&rm.removed)) {
+	if !s.ReadUint32((*uint32)(&rm.Removed)) {
 		return io.ErrUnexpectedEOF
 	}
 	return nil
 }
 
 func (rm *Remove) Marshal(b *cryptobyte.Builder) {
-	b.AddUint32(uint32(rm.removed))
+	b.AddUint32(uint32(rm.Removed))
 }
 
 type PreSharedKey struct {
-	psk PreSharedKeyID
+	PSK PreSharedKeyID
 }
 
 func (psk *PreSharedKey) Unmarshal(s *cryptobyte.String) error {
 	*psk = PreSharedKey{}
-	return psk.psk.Unmarshal(s)
+	return psk.PSK.Unmarshal(s)
 }
 
 func (psk *PreSharedKey) Marshal(b *cryptobyte.Builder) {
-	psk.psk.Marshal(b)
+	psk.PSK.Marshal(b)
 }
 
 type ReInit struct {
-	groupID     GroupID
-	version     ProtocolVersion
-	cipherSuite CipherSuite
-	extensions  []Extension
+	GroupID     GroupID
+	Version     ProtocolVersion
+	CipherSuite CipherSuite
+	Extensions  []Extension
 }
 
 func (ri *ReInit) Unmarshal(s *cryptobyte.String) error {
 	*ri = ReInit{}
 
-	if !ReadOpaqueVec(s, (*[]byte)(&ri.groupID)) || !s.ReadUint16((*uint16)(&ri.version)) || !s.ReadUint16((*uint16)(&ri.cipherSuite)) {
+	if !ReadOpaqueVec(s, (*[]byte)(&ri.GroupID)) || !s.ReadUint16((*uint16)(&ri.Version)) || !s.ReadUint16((*uint16)(&ri.CipherSuite)) {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -175,16 +175,16 @@ func (ri *ReInit) Unmarshal(s *cryptobyte.String) error {
 	if err != nil {
 		return err
 	}
-	ri.extensions = exts
+	ri.Extensions = exts
 
 	return nil
 }
 
 func (ri *ReInit) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(ri.groupID))
-	b.AddUint16(uint16(ri.version))
-	b.AddUint16(uint16(ri.cipherSuite))
-	MarshalExtensionVec(b, ri.extensions)
+	WriteOpaqueVec(b, []byte(ri.GroupID))
+	b.AddUint16(uint16(ri.Version))
+	b.AddUint16(uint16(ri.CipherSuite))
+	MarshalExtensionVec(b, ri.Extensions)
 }
 
 type ExternalInit struct {
@@ -204,7 +204,7 @@ func (ei *ExternalInit) Marshal(b *cryptobyte.Builder) {
 }
 
 type GroupContextExtensions struct {
-	extensions []Extension
+	Extensions []Extension
 }
 
 func (exts *GroupContextExtensions) Unmarshal(s *cryptobyte.String) error {
@@ -214,13 +214,13 @@ func (exts *GroupContextExtensions) Unmarshal(s *cryptobyte.String) error {
 	if err != nil {
 		return err
 	}
-	exts.extensions = l
+	exts.Extensions = l
 
 	return nil
 }
 
 func (exts *GroupContextExtensions) Marshal(b *cryptobyte.Builder) {
-	MarshalExtensionVec(b, exts.extensions)
+	MarshalExtensionVec(b, exts.Extensions)
 }
 
 type ProposalOrRefType uint8
@@ -253,24 +253,24 @@ func (ref ProposalRef) Equal(other ProposalRef) bool {
 }
 
 type ProposalOrRef struct {
-	typ       ProposalOrRefType
-	proposal  *Proposal   // for proposalOrRefTypeProposal
-	reference ProposalRef // for proposalOrRefTypeReference
+	Type      ProposalOrRefType
+	Proposal  *Proposal   // for proposalOrRefTypeProposal
+	Reference ProposalRef // for proposalOrRefTypeReference
 }
 
 func (propOrRef *ProposalOrRef) Unmarshal(s *cryptobyte.String) error {
 	*propOrRef = ProposalOrRef{}
 
-	if err := propOrRef.typ.Unmarshal(s); err != nil {
+	if err := propOrRef.Type.Unmarshal(s); err != nil {
 		return err
 	}
 
-	switch propOrRef.typ {
+	switch propOrRef.Type {
 	case ProposalOrRefTypeProposal:
-		propOrRef.proposal = new(Proposal)
-		return propOrRef.proposal.Unmarshal(s)
+		propOrRef.Proposal = new(Proposal)
+		return propOrRef.Proposal.Unmarshal(s)
 	case ProposalOrRefTypeReference:
-		if !ReadOpaqueVec(s, (*[]byte)(&propOrRef.reference)) {
+		if !ReadOpaqueVec(s, (*[]byte)(&propOrRef.Reference)) {
 			return io.ErrUnexpectedEOF
 		}
 		return nil
@@ -280,20 +280,20 @@ func (propOrRef *ProposalOrRef) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (propOrRef *ProposalOrRef) Marshal(b *cryptobyte.Builder) {
-	propOrRef.typ.Marshal(b)
-	switch propOrRef.typ {
+	propOrRef.Type.Marshal(b)
+	switch propOrRef.Type {
 	case ProposalOrRefTypeProposal:
-		propOrRef.proposal.Marshal(b)
+		propOrRef.Proposal.Marshal(b)
 	case ProposalOrRefTypeReference:
-		WriteOpaqueVec(b, []byte(propOrRef.reference))
+		WriteOpaqueVec(b, []byte(propOrRef.Reference))
 	default:
 		panic("unreachable")
 	}
 }
 
 type Commit struct {
-	proposals []ProposalOrRef
-	path      *UpdatePath // optional
+	Proposals []ProposalOrRef
+	Path      *UpdatePath // optional
 }
 
 func (c *Commit) Unmarshal(s *cryptobyte.String) error {
@@ -304,7 +304,7 @@ func (c *Commit) Unmarshal(s *cryptobyte.String) error {
 		if err := propOrRef.Unmarshal(s); err != nil {
 			return err
 		}
-		c.proposals = append(c.proposals, propOrRef)
+		c.Proposals = append(c.Proposals, propOrRef)
 		return nil
 	})
 	if err != nil {
@@ -315,8 +315,8 @@ func (c *Commit) Unmarshal(s *cryptobyte.String) error {
 	if !ReadOptional(s, &hasPath) {
 		return io.ErrUnexpectedEOF
 	} else if hasPath {
-		c.path = new(UpdatePath)
-		if err := c.path.Unmarshal(s); err != nil {
+		c.Path = new(UpdatePath)
+		if err := c.Path.Unmarshal(s); err != nil {
 			return err
 		}
 	}
@@ -325,12 +325,12 @@ func (c *Commit) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (c *Commit) Marshal(b *cryptobyte.Builder) {
-	WriteVector(b, len(c.proposals), func(b *cryptobyte.Builder, i int) {
-		c.proposals[i].Marshal(b)
+	WriteVector(b, len(c.Proposals), func(b *cryptobyte.Builder, i int) {
+		c.Proposals[i].Marshal(b)
 	})
-	WriteOptional(b, c.path != nil)
-	if c.path != nil {
-		c.path.Marshal(b)
+	WriteOptional(b, c.Path != nil)
+	if c.Path != nil {
+		c.Path.Marshal(b)
 	}
 }
 
@@ -346,21 +346,21 @@ func (c *Commit) Marshal(b *cryptobyte.Builder) {
 //     all members of the group who will process the commit.
 //   - It does not check whether the ratchet tree is valid after processing the
 //     commit.
-func VerifyProposalList(proposals []Proposal, senders []leafIndex, committer leafIndex) error {
+func VerifyProposalList(proposals []Proposal, senders []LeafIndex, committer LeafIndex) error {
 	if len(proposals) != len(senders) {
 		panic("unreachable")
 	}
 
 	add := make(map[string]struct{})
-	updateOrRemove := make(map[leafIndex]struct{})
+	updateOrRemove := make(map[LeafIndex]struct{})
 	psk := make(map[string]struct{})
 	groupContextExtensions := false
 	for i, prop := range proposals {
 		sender := senders[i]
 
-		switch prop.proposalType {
+		switch prop.ProposalType {
 		case ProposalTypeAdd:
-			k := string(prop.add.keyPackage.LeafNode.signatureKey)
+			k := string(prop.Add.KeyPackage.LeafNode.SignatureKey)
 			if _, dup := add[k]; dup {
 				return fmt.Errorf("mls: multiple add proposals have the same signature key")
 			}
@@ -374,15 +374,15 @@ func VerifyProposalList(proposals []Proposal, senders []leafIndex, committer lea
 			}
 			updateOrRemove[sender] = struct{}{}
 		case ProposalTypeRemove:
-			if prop.remove.removed == committer {
+			if prop.Remove.Removed == committer {
 				return fmt.Errorf("mls: remove proposal removes the committer")
 			}
-			if _, dup := updateOrRemove[prop.remove.removed]; dup {
+			if _, dup := updateOrRemove[prop.Remove.Removed]; dup {
 				return fmt.Errorf("mls: multiple update and/or remove proposals apply to the same leaf")
 			}
-			updateOrRemove[prop.remove.removed] = struct{}{}
+			updateOrRemove[prop.Remove.Removed] = struct{}{}
 		case ProposalTypePSK:
-			b, err := Marshal(&prop.preSharedKey.psk)
+			b, err := Marshal(&prop.PreSharedKey.PSK)
 			if err != nil {
 				return err
 			}
@@ -413,7 +413,7 @@ func ProposalListNeedsPath(proposals []Proposal) bool {
 	}
 
 	for _, prop := range proposals {
-		switch prop.proposalType {
+		switch prop.ProposalType {
 		case ProposalTypeUpdate, ProposalTypeRemove, ProposalTypeExternalInit, ProposalTypeGroupContextExtensions:
 			return true
 		}
@@ -423,17 +423,17 @@ func ProposalListNeedsPath(proposals []Proposal) bool {
 }
 
 type GroupInfo struct {
-	groupContext    GroupContext
-	extensions      []Extension
-	confirmationTag []byte
-	signer          leafIndex
-	signature       []byte
+	GroupContext    GroupContext
+	Extensions      []Extension
+	ConfirmationTag []byte
+	Signer          LeafIndex
+	Signature       []byte
 }
 
 func (info *GroupInfo) Unmarshal(s *cryptobyte.String) error {
 	*info = GroupInfo{}
 
-	if err := info.groupContext.Unmarshal(s); err != nil {
+	if err := info.GroupContext.Unmarshal(s); err != nil {
 		return err
 	}
 
@@ -441,9 +441,9 @@ func (info *GroupInfo) Unmarshal(s *cryptobyte.String) error {
 	if err != nil {
 		return err
 	}
-	info.extensions = exts
+	info.Extensions = exts
 
-	if !ReadOpaqueVec(s, &info.confirmationTag) || !s.ReadUint32((*uint32)(&info.signer)) || !ReadOpaqueVec(s, &info.signature) {
+	if !ReadOpaqueVec(s, &info.ConfirmationTag) || !s.ReadUint32((*uint32)(&info.Signer)) || !ReadOpaqueVec(s, &info.Signature) {
 		return err
 	}
 
@@ -452,57 +452,57 @@ func (info *GroupInfo) Unmarshal(s *cryptobyte.String) error {
 
 func (info *GroupInfo) Marshal(b *cryptobyte.Builder) {
 	(*GroupInfoTBS)(info).Marshal(b)
-	WriteOpaqueVec(b, info.signature)
+	WriteOpaqueVec(b, info.Signature)
 }
 
 func (info *GroupInfo) VerifySignature(signerPub SignaturePublicKey) bool {
-	cs := info.groupContext.CipherSuite
+	cs := info.GroupContext.CipherSuite
 	tbs, err := Marshal((*GroupInfoTBS)(info))
 	if err != nil {
 		return false
 	}
-	return cs.VerifyWithLabel([]byte(signerPub), []byte("GroupInfoTBS"), tbs, info.signature)
+	return cs.VerifyWithLabel([]byte(signerPub), []byte("GroupInfoTBS"), tbs, info.Signature)
 }
 
 func (info *GroupInfo) VerifyConfirmationTag(joinerSecret, pskSecret []byte) bool {
-	cs := info.groupContext.CipherSuite
-	epochSecret, err := info.groupContext.ExtractEpochSecret(joinerSecret, pskSecret)
+	cs := info.GroupContext.CipherSuite
+	epochSecret, err := info.GroupContext.ExtractEpochSecret(joinerSecret, pskSecret)
 	if err != nil {
 		return false
 	}
-	confirmationKey, err := cs.DeriveSecret(epochSecret, secretLabelConfirm)
+	confirmationKey, err := cs.DeriveSecret(epochSecret, SecretLabelConfirm)
 	if err != nil {
 		return false
 	}
-	return cs.verifyMAC(confirmationKey, info.groupContext.ConfirmedTranscriptHash, info.confirmationTag)
+	return cs.VerifyMAC(confirmationKey, info.GroupContext.ConfirmedTranscriptHash, info.ConfirmationTag)
 }
 
 type GroupInfoTBS GroupInfo
 
 func (info *GroupInfoTBS) Marshal(b *cryptobyte.Builder) {
-	info.groupContext.Marshal(b)
-	MarshalExtensionVec(b, info.extensions)
-	WriteOpaqueVec(b, info.confirmationTag)
-	b.AddUint32(uint32(info.signer))
+	info.GroupContext.Marshal(b)
+	MarshalExtensionVec(b, info.Extensions)
+	WriteOpaqueVec(b, info.ConfirmationTag)
+	b.AddUint32(uint32(info.Signer))
 }
 
 type GroupSecrets struct {
-	joinerSecret []byte
-	pathSecret   []byte // optional
-	psks         []PreSharedKeyID
+	JoinerSecret []byte
+	PathSecret   []byte // optional
+	PSKs         []PreSharedKeyID
 }
 
 func (sec *GroupSecrets) Unmarshal(s *cryptobyte.String) error {
 	*sec = GroupSecrets{}
 
-	if !ReadOpaqueVec(s, &sec.joinerSecret) {
+	if !ReadOpaqueVec(s, &sec.JoinerSecret) {
 		return io.ErrUnexpectedEOF
 	}
 
 	var hasPathSecret bool
 	if !ReadOptional(s, &hasPathSecret) {
 		return io.ErrUnexpectedEOF
-	} else if hasPathSecret && !ReadOpaqueVec(s, &sec.pathSecret) {
+	} else if hasPathSecret && !ReadOpaqueVec(s, &sec.PathSecret) {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -511,21 +511,21 @@ func (sec *GroupSecrets) Unmarshal(s *cryptobyte.String) error {
 		if err := psk.Unmarshal(s); err != nil {
 			return err
 		}
-		sec.psks = append(sec.psks, psk)
+		sec.PSKs = append(sec.PSKs, psk)
 		return nil
 	})
 }
 
 func (sec *GroupSecrets) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, sec.joinerSecret)
+	WriteOpaqueVec(b, sec.JoinerSecret)
 
-	WriteOptional(b, sec.pathSecret != nil)
-	if sec.pathSecret != nil {
-		WriteOpaqueVec(b, sec.pathSecret)
+	WriteOptional(b, sec.PathSecret != nil)
+	if sec.PathSecret != nil {
+		WriteOpaqueVec(b, sec.PathSecret)
 	}
 
-	WriteVector(b, len(sec.psks), func(b *cryptobyte.Builder, i int) {
-		sec.psks[i].Marshal(b)
+	WriteVector(b, len(sec.PSKs), func(b *cryptobyte.Builder, i int) {
+		sec.PSKs[i].Marshal(b)
 	})
 }
 
@@ -533,11 +533,11 @@ func (sec *GroupSecrets) Marshal(b *cryptobyte.Builder) {
 // resumption with usage reinit or branch.
 func (sec *GroupSecrets) VerifySingleReinitOrBranchPSK() bool {
 	n := 0
-	for _, pskID := range sec.psks {
-		if pskID.pskType != pskTypeResumption {
+	for _, pskID := range sec.PSKs {
+		if pskID.PSKType != PSKTypeResumption {
 			continue
 		}
-		switch pskID.usage {
+		switch pskID.Usage {
 		case ResumptionPSKUsageReinit, ResumptionPSKUsageBranch:
 			n++
 		}
@@ -546,15 +546,15 @@ func (sec *GroupSecrets) VerifySingleReinitOrBranchPSK() bool {
 }
 
 type Welcome struct {
-	cipherSuite        CipherSuite
-	secrets            []EncryptedGroupSecrets
-	encryptedGroupInfo []byte
+	CipherSuite        CipherSuite
+	Secrets            []EncryptedGroupSecrets
+	EncryptedGroupInfo []byte
 }
 
 func (w *Welcome) Unmarshal(s *cryptobyte.String) error {
 	*w = Welcome{}
 
-	if !s.ReadUint16((*uint16)(&w.cipherSuite)) {
+	if !s.ReadUint16((*uint16)(&w.CipherSuite)) {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -563,14 +563,14 @@ func (w *Welcome) Unmarshal(s *cryptobyte.String) error {
 		if err := sec.Unmarshal(s); err != nil {
 			return err
 		}
-		w.secrets = append(w.secrets, sec)
+		w.Secrets = append(w.Secrets, sec)
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	if !ReadOpaqueVec(s, &w.encryptedGroupInfo) {
+	if !ReadOpaqueVec(s, &w.EncryptedGroupInfo) {
 		return io.ErrUnexpectedEOF
 	}
 
@@ -578,31 +578,31 @@ func (w *Welcome) Unmarshal(s *cryptobyte.String) error {
 }
 
 func (w *Welcome) Marshal(b *cryptobyte.Builder) {
-	b.AddUint16(uint16(w.cipherSuite))
-	WriteVector(b, len(w.secrets), func(b *cryptobyte.Builder, i int) {
-		w.secrets[i].Marshal(b)
+	b.AddUint16(uint16(w.CipherSuite))
+	WriteVector(b, len(w.Secrets), func(b *cryptobyte.Builder, i int) {
+		w.Secrets[i].Marshal(b)
 	})
-	WriteOpaqueVec(b, w.encryptedGroupInfo)
+	WriteOpaqueVec(b, w.EncryptedGroupInfo)
 }
 
-func (w *Welcome) findSecret(ref keyPackageRef) *EncryptedGroupSecrets {
-	for i, sec := range w.secrets {
-		if sec.newMember.Equal(ref) {
-			return &w.secrets[i]
+func (w *Welcome) FindSecret(ref KeyPackageRef) *EncryptedGroupSecrets {
+	for i, sec := range w.Secrets {
+		if sec.NewMember.Equal(ref) {
+			return &w.Secrets[i]
 		}
 	}
 	return nil
 }
 
-func (w *Welcome) DecryptGroupSecrets(ref keyPackageRef, initKeyPriv []byte) (*GroupSecrets, error) {
-	cs := w.cipherSuite
+func (w *Welcome) DecryptGroupSecrets(ref KeyPackageRef, initKeyPriv []byte) (*GroupSecrets, error) {
+	cs := w.CipherSuite
 
-	sec := w.findSecret(ref)
+	sec := w.FindSecret(ref)
 	if sec == nil {
 		return nil, fmt.Errorf("mls: encrypted group secrets not found for provided key package ref")
 	}
 
-	rawGroupSecrets, err := cs.DecryptWithLabel(initKeyPriv, []byte("Welcome"), w.encryptedGroupInfo, sec.encryptedGroupSecrets.KEMOutput, sec.encryptedGroupSecrets.Ciphertext)
+	rawGroupSecrets, err := cs.DecryptWithLabel(initKeyPriv, []byte("Welcome"), w.EncryptedGroupInfo, sec.EncryptedGroupSecrets.KEMOutput, sec.EncryptedGroupSecrets.Ciphertext)
 	if err != nil {
 		return nil, err
 	}
@@ -615,8 +615,8 @@ func (w *Welcome) DecryptGroupSecrets(ref keyPackageRef, initKeyPriv []byte) (*G
 }
 
 func (w *Welcome) DecryptGroupInfo(joinerSecret, pskSecret []byte) (*GroupInfo, error) {
-	cs := w.cipherSuite
-	_, _, aead := cs.hpke().Params()
+	cs := w.CipherSuite
+	_, _, aead := cs.HPKE().Params()
 
 	welcomeSecret, err := ExtractWelcomeSecret(cs, joinerSecret, pskSecret)
 	if err != nil {
@@ -636,7 +636,7 @@ func (w *Welcome) DecryptGroupInfo(joinerSecret, pskSecret []byte) (*GroupInfo, 
 	if err != nil {
 		return nil, err
 	}
-	rawGroupInfo, err := welcomeCipher.Open(nil, welcomeNonce, w.encryptedGroupInfo, nil)
+	rawGroupInfo, err := welcomeCipher.Open(nil, welcomeNonce, w.EncryptedGroupInfo, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -650,22 +650,22 @@ func (w *Welcome) DecryptGroupInfo(joinerSecret, pskSecret []byte) (*GroupInfo, 
 }
 
 type EncryptedGroupSecrets struct {
-	newMember             keyPackageRef
-	encryptedGroupSecrets HPKECiphertext
+	NewMember             KeyPackageRef
+	EncryptedGroupSecrets HPKECiphertext
 }
 
 func (sec *EncryptedGroupSecrets) Unmarshal(s *cryptobyte.String) error {
 	*sec = EncryptedGroupSecrets{}
-	if !ReadOpaqueVec(s, (*[]byte)(&sec.newMember)) {
+	if !ReadOpaqueVec(s, (*[]byte)(&sec.NewMember)) {
 		return io.ErrUnexpectedEOF
 	}
-	if err := sec.encryptedGroupSecrets.unmarshal(s); err != nil {
+	if err := sec.EncryptedGroupSecrets.unmarshal(s); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (sec *EncryptedGroupSecrets) Marshal(b *cryptobyte.Builder) {
-	WriteOpaqueVec(b, []byte(sec.newMember))
-	sec.encryptedGroupSecrets.marshal(b)
+	WriteOpaqueVec(b, []byte(sec.NewMember))
+	sec.EncryptedGroupSecrets.marshal(b)
 }
